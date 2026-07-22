@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>RAGIM TRIP — 일본여행 시뮬레이터</title>
+<title>RAGIM TRIP — 세계여행 시뮬레이터</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -180,7 +180,7 @@
 <div id="intro-screen" class="screen active">
   <div class="intro-plane">✈️</div>
   <h1>RAGIM <span>TRIP</span></h1>
-  <p class="tag">항공권 예매부터 공항 체크인, 이륙까지<br>일본여행의 모든 순간을 3D로 체험하세요</p>
+  <p class="tag">항공권 예매부터 공항 체크인, 이륙까지<br>일본·태국·베트남·프랑스·미국·싱가포르<br>세계 여행의 모든 순간을 3D로 체험하세요</p>
   <button class="btn" onclick="Game.startBooking()">여행 시작하기</button>
 </div>
 
@@ -189,7 +189,7 @@
   <div class="phone">
     <div class="app-header">
       <div class="app-brand"><div class="logo">✈️</div> RAGIM TRIP</div>
-      <div class="app-sub" id="app-sub">일본행 항공권을 검색해보세요</div>
+      <div class="app-sub" id="app-sub">전 세계 항공권을 검색해보세요</div>
       <div class="step-dots" id="step-dots">
         <i class="on"></i><i></i><i></i><i></i>
       </div>
@@ -228,7 +228,7 @@
 <!-- ===== 엔딩 ===== -->
 <div id="end-screen" class="screen">
   <div class="end-emoji">🗼</div>
-  <h1 id="end-title">일본 도착!</h1>
+  <h1 id="end-title">도착!</h1>
   <p id="end-summary"></p>
   <button class="btn" onclick="location.reload()">다시 여행하기</button>
 </div>
@@ -240,38 +240,67 @@
 ================================================================ */
 
 // ---------------- 데이터 ----------------
-const FLIGHTS = [
-  { no:'RA101', from:'ICN', to:'NRT', city:'도쿄 (나리타)', dep:'08:30', arr:'11:00', dur:'2시간 30분', price:189000, gate:'GATE 12', dest:'도쿄', landmark:'🗼', landmarkName:'도쿄타워' },
-  { no:'RA205', from:'ICN', to:'KIX', city:'오사카 (간사이)', dep:'10:15', arr:'12:05', dur:'1시간 50분', price:159000, gate:'GATE 12', dest:'오사카', landmark:'🏯', landmarkName:'오사카성' },
-  { no:'RA330', from:'ICN', to:'FUK', city:'후쿠오카', dep:'13:40', arr:'15:00', dur:'1시간 20분', price:129000, gate:'GATE 12', dest:'후쿠오카', landmark:'🍜', landmarkName:'하카타 라멘거리' },
-  { no:'RA412', from:'ICN', to:'CTS', city:'삿포로 (신치토세)', dep:'09:00', arr:'11:45', dur:'2시간 45분', price:219000, gate:'GATE 12', dest:'삿포로', landmark:'⛄', landmarkName:'오도리 공원' },
-];
-const HOTELS = {
-  NRT: [
-    { name:'시부야 스카이 호텔', stars:5, meta:'시부야역 도보 3분 · 조식 포함', price:180000 },
-    { name:'아사쿠사 료칸 하나', stars:4, meta:'센소지 앞 · 온천 있음', price:120000 },
-    { name:'신주쿠 캡슐 인', stars:3, meta:'가성비 최고 · 신주쿠역 1분', price:45000 },
-  ],
-  KIX: [
-    { name:'도톤보리 리버 호텔', stars:5, meta:'글리코상 바로 앞 · 야경 명당', price:170000 },
-    { name:'난바 스테이', stars:4, meta:'난바역 직결 · 조식 포함', price:110000 },
-    { name:'우메다 비즈니스 호텔', stars:3, meta:'우메다역 5분 · 깔끔함', price:55000 },
-  ],
-  FUK: [
-    { name:'하카타 오션뷰 호텔', stars:5, meta:'바다 전망 · 온천 있음', price:160000 },
-    { name:'텐진 시티 호텔', stars:4, meta:'텐진 중심가 · 쇼핑 최적', price:95000 },
-    { name:'캐널시티 인', stars:3, meta:'캐널시티 도보 2분', price:50000 },
-  ],
-  CTS: [
-    { name:'삿포로 그랜드 온천호텔', stars:5, meta:'노천 온천 · 조식 뷔페', price:200000 },
-    { name:'스스키노 타워 호텔', stars:4, meta:'스스키노역 1분 · 야경', price:130000 },
-    { name:'오도리 파크 인', stars:3, meta:'오도리 공원 앞', price:60000 },
-  ],
+// 가상 항공사 (실제 항공사 아님)
+const AIRLINES = {
+  RA: { name:'RAGIM AIR',   short:'라짐항공',   color:'#1667ff', icon:'✈', tag:'풀서비스' },
+  KO: { name:'코리아항공',   short:'코리아항공', color:'#0a4da2', icon:'🛫', tag:'풀서비스' },
+  BW: { name:'블루윙항공',   short:'블루윙',     color:'#0891b2', icon:'🪽', tag:'풀서비스' },
+  JB: { name:'제트버드',     short:'제트버드',   color:'#f97316', icon:'🐦', tag:'저비용(LCC)' },
+  SK: { name:'스카이젯',     short:'스카이젯',   color:'#8b5cf6', icon:'🚀', tag:'저비용(LCC)' },
 };
 
+// 목적지 (여러 나라). type = 착륙 씬에 세워질 랜드마크 종류
+const DESTS = {
+  NRT: { country:'일본',   flag:'🇯🇵', city:'도쿄',   airport:'나리타',   landmark:'🗼', landmarkName:'도쿄타워',       type:'tower',  hue:0xe0384f, sky:[0x14245a,0xf0a35a], ground:0x5f8f52,
+    flights:[ {al:'RA',dep:'08:30',arr:'11:00',dur:'2h30m',price:189000},{al:'KO',dep:'10:20',arr:'12:50',dur:'2h30m',price:205000},{al:'JB',dep:'14:05',arr:'16:35',dur:'2h30m',price:112000} ],
+    hotels:[ {name:'시부야 스카이 호텔',stars:5,meta:'시부야역 도보 3분 · 조식 포함',price:180000},{name:'아사쿠사 료칸 하나',stars:4,meta:'센소지 앞 · 온천 있음',price:120000},{name:'신주쿠 캡슐 인',stars:3,meta:'가성비 최고 · 신주쿠역 1분',price:45000} ] },
+  KIX: { country:'일본',   flag:'🇯🇵', city:'오사카', airport:'간사이',   landmark:'🏯', landmarkName:'오사카성',       type:'castle', hue:0xf5f0e6, sky:[0x1c2a52,0xe89a5c], ground:0x6a9455,
+    flights:[ {al:'RA',dep:'09:15',arr:'11:05',dur:'1h50m',price:159000},{al:'BW',dep:'11:40',arr:'13:30',dur:'1h50m',price:171000},{al:'SK',dep:'16:20',arr:'18:10',dur:'1h50m',price:98000} ],
+    hotels:[ {name:'도톤보리 리버 호텔',stars:5,meta:'글리코상 바로 앞 · 야경 명당',price:170000},{name:'난바 스테이',stars:4,meta:'난바역 직결 · 조식 포함',price:110000},{name:'우메다 비즈니스 호텔',stars:3,meta:'우메다역 5분 · 깔끔함',price:55000} ] },
+  BKK: { country:'태국',   flag:'🇹🇭', city:'방콕',   airport:'수완나품', landmark:'🛕', landmarkName:'왓 아룬 사원',   type:'temple', hue:0xf3c34b, sky:[0x123a63,0xffcf6b], ground:0x7fa24a,
+    flights:[ {al:'RA',dep:'20:10',arr:'23:55',dur:'5h45m',price:329000},{al:'KO',dep:'09:30',arr:'13:15',dur:'5h45m',price:355000},{al:'JB',dep:'23:40',arr:'03:25',dur:'5h45m',price:219000} ],
+    hotels:[ {name:'차오프라야 리버뷰',stars:5,meta:'강변 인피니티풀 · 조식',price:150000},{name:'수쿰빗 부티크',stars:4,meta:'터미널21 도보 5분',price:78000},{name:'카오산 게스트하우스',stars:3,meta:'배낭여행 성지 · 초저가',price:28000} ] },
+  DAD: { country:'베트남', flag:'🇻🇳', city:'다낭',   airport:'다낭',     landmark:'🏝️', landmarkName:'미케 비치',      type:'beach',  hue:0x2bb6a8, sky:[0x1055a0,0x8fd6e8], ground:0xe4d3a0,
+    flights:[ {al:'RA',dep:'19:00',arr:'22:40',dur:'4h40m',price:279000},{al:'BW',dep:'08:10',arr:'11:50',dur:'4h40m',price:295000},{al:'SK',dep:'01:20',arr:'05:00',dur:'4h40m',price:168000} ],
+    hotels:[ {name:'미케 비치 리조트',stars:5,meta:'프라이빗 비치 · 풀빌라',price:135000},{name:'한강 뷰 호텔',stars:4,meta:'용다리 야경 명당',price:72000},{name:'다낭 시티 인',stars:3,meta:'시내 중심 · 조식',price:38000} ] },
+  CDG: { country:'프랑스', flag:'🇫🇷', city:'파리',   airport:'샤를드골', landmark:'🗼', landmarkName:'에펠탑',         type:'eiffel', hue:0x8a7a5c, sky:[0x1a2f5e,0xd98cae], ground:0x6d8f58,
+    flights:[ {al:'RA',dep:'13:30',arr:'19:20',dur:'12h50m',price:890000},{al:'KO',dep:'10:00',arr:'15:50',dur:'12h50m',price:950000},{al:'BW',dep:'22:15',arr:'04:05',dur:'12h50m',price:790000} ],
+    hotels:[ {name:'샹젤리제 팰리스',stars:5,meta:'개선문 도보 2분 · 미슐랭 조식',price:420000},{name:'몽마르트 부티크',stars:4,meta:'사크레쾨르 언덕 · 뷰 최고',price:210000},{name:'라탱 지구 호스텔',stars:3,meta:'센강 도보 5분',price:88000} ] },
+  JFK: { country:'미국',   flag:'🇺🇸', city:'뉴욕',   airport:'JFK',      landmark:'🗽', landmarkName:'자유의 여신상',   type:'statue', hue:0x5fae8f, sky:[0x13224f,0xdb7a5e], ground:0x5c6b7a,
+    flights:[ {al:'RA',dep:'11:00',arr:'12:30',dur:'14h30m',price:1290000},{al:'KO',dep:'09:40',arr:'11:10',dur:'14h30m',price:1380000},{al:'SK',dep:'19:50',arr:'21:20',dur:'14h30m',price:990000} ],
+    hotels:[ {name:'맨해튼 센트럴파크뷰',stars:5,meta:'센트럴파크 앞 · 루프탑바',price:520000},{name:'타임스스퀘어 호텔',stars:4,meta:'브로드웨이 한복판',price:290000},{name:'브루클린 로프트',stars:3,meta:'힙한 감성 · 지하철 1분',price:130000} ] },
+  SIN: { country:'싱가포르', flag:'🇸🇬', city:'싱가포르', airport:'창이', landmark:'🌃', landmarkName:'마리나 베이',   type:'city',   hue:0x3a7bd5, sky:[0x0f2a55,0x7fc0e6], ground:0x4f7a6a,
+    flights:[ {al:'RA',dep:'23:30',arr:'05:10',dur:'6h40m',price:389000},{al:'BW',dep:'08:50',arr:'14:30',dur:'6h40m',price:410000},{al:'JB',dep:'16:15',arr:'21:55',dur:'6h40m',price:255000} ],
+    hotels:[ {name:'마리나 스카이풀 호텔',stars:5,meta:'인피니티풀 · 시내 전망',price:340000},{name:'클락키 리버 호텔',stars:4,meta:'강변 나이트라이프',price:160000},{name:'차이나타운 인',stars:3,meta:'MRT 직결 · 호커센터 앞',price:75000} ] },
+};
+
+// 선택 가능한 도착지 코드 순서
+const DEST_ORDER = ['NRT','KIX','BKK','DAD','CDG','JFK','SIN'];
+
+// 라우트 → 항공편 목록 (항공사 정보 병합)
+function getFlights(destCode){
+  const codes = destCode ? [destCode] : DEST_ORDER;
+  const out = [];
+  codes.forEach(code=>{
+    const d = DESTS[code];
+    d.flights.forEach((fl,i)=>{
+      const al = AIRLINES[fl.al];
+      out.push({
+        to:code, from:'ICN', country:d.country, flag:d.flag, city:d.city, airport:d.airport,
+        dest:d.city, landmark:d.landmark, landmarkName:d.landmarkName, type:d.type, hue:d.hue, sky:d.sky, ground:d.ground,
+        airline:fl.al, airlineName:al.name, airlineColor:al.color, airlineTag:al.tag, airlineIcon:al.icon,
+        no:fl.al + (101 + i*7 + DEST_ORDER.indexOf(code)*13),
+        dep:fl.dep, arr:fl.arr, dur:fl.dur, price:fl.price,
+        gate:'GATE ' + (10 + DEST_ORDER.indexOf(code)),
+      });
+    });
+  });
+  return out;
+}
+
 const Booking = {
-  name:'', flight:null, hotel:null, nights:2, seat:'',
-  total(){ return (this.flight?this.flight.price:0) + (this.hotel?this.hotel.price*this.nights:0); }
+  name:'', pax:1, flight:null, hotel:null, nights:2, seat:'',
+  total(){ return (this.flight?this.flight.price*this.pax:0) + (this.hotel?this.hotel.price*this.nights:0); }
 };
 const fmt = n => n.toLocaleString('ko-KR') + '원';
 
@@ -284,52 +313,75 @@ const AppUI = {
 
   showSearch(){
     this.setStep(0);
-    this.sub.textContent = '일본행 항공권을 검색해보세요';
+    this.sub.textContent = '어디로 떠나볼까요? 경로를 검색하세요';
+    // 나라별 그룹 옵션
+    const groups = {};
+    DEST_ORDER.forEach(code=>{ const d=DESTS[code]; (groups[d.country]=groups[d.country]||[]).push([code,`${d.flag} ${d.city} (${code})`]); });
+    let opts = '';
+    for(const country in groups){
+      opts += `<optgroup label="${country}">` + groups[country].map(([c,l])=>`<option value="${c}">${l}</option>`).join('') + `</optgroup>`;
+    }
     this.el.innerHTML = `
       <div class="card">
         <h3>🔍 항공권 검색</h3>
         <div class="field"><label>여행자 이름</label>
           <input id="in-name" placeholder="탑승권에 표시될 이름" maxlength="12" value="${Booking.name}"></div>
-        <div class="row2">
-          <div class="field"><label>출발지</label><input value="인천 (ICN)" disabled></div>
-          <div class="field"><label>도착지</label>
-            <select id="in-dest">
-              <option value="">전체 일본</option>
-              <option value="NRT">도쿄</option><option value="KIX">오사카</option>
-              <option value="FUK">후쿠오카</option><option value="CTS">삿포로</option>
-            </select></div>
-        </div>
+        <div class="field"><label>출발지</label><input value="✈ 인천 (ICN)" disabled></div>
+        <div class="field"><label>도착지 — 가고 싶은 나라/도시</label>
+          <select id="in-dest">
+            <option value="">🌏 전체 노선 보기</option>
+            ${opts}
+          </select></div>
         <div class="row2">
           <div class="field"><label>출발일</label><input type="date" id="in-date"></div>
-          <div class="field"><label>인원</label><select><option>성인 1명</option></select></div>
+          <div class="field"><label>인원</label>
+            <select id="in-pax">
+              <option value="1">성인 1명</option><option value="2">성인 2명</option><option value="3">성인 3명</option>
+            </select></div>
         </div>
-        <button class="btn" onclick="AppUI.searchFlights()">항공권 검색</button>
+        <button class="btn" onclick="AppUI.searchFlights()">🔎 항공편 검색하기</button>
+      </div>
+      <div class="card" style="padding:12px 16px;background:#f2f7ff;border-color:#cfe0ff;">
+        <div style="font-size:12px;color:#3d5a8c;line-height:1.6;">
+          <b>✈ ${DEST_ORDER.length}개 도시 · 5개 항공사</b> 운항 중<br>
+          일본 · 태국 · 베트남 · 프랑스 · 미국 · 싱가포르 어디든 골라보세요!
+        </div>
       </div>`;
     const d = new Date(); d.setDate(d.getDate()+7);
     document.getElementById('in-date').value = d.toISOString().slice(0,10);
   },
 
   searchFlights(){
-    const name = document.getElementById('in-name').value.trim();
+    const name = (document.getElementById('in-name').value||'').trim();
     if(!name){ alert('여행자 이름을 입력해주세요!'); return; }
     Booking.name = name;
+    Booking.pax = +document.getElementById('in-pax').value;
     const dest = document.getElementById('in-dest').value;
-    const list = dest ? FLIGHTS.filter(f=>f.to===dest) : FLIGHTS;
+    let list = getFlights(dest);
+    // 가격순 정렬
+    list = list.slice().sort((a,b)=>a.price-b.price);
     this.setStep(1);
-    this.sub.textContent = '마음에 드는 항공편을 선택하세요';
-    this.el.innerHTML = `<div id="flight-list"></div>
-      <button class="btn ghost" onclick="AppUI.showSearch()">← 다시 검색</button>`;
+    this.sub.textContent = dest ? `인천 → ${DESTS[dest].city} · ${list.length}개 항공편` : `전체 ${list.length}개 항공편`;
+    this.el.innerHTML = `
+      <div style="font-size:12px;color:#5a6d8c;margin-bottom:10px;padding:0 2px;">💡 가격이 낮은 순 · 카드를 눌러 선택하세요</div>
+      <div id="flight-list"></div>
+      <button class="btn ghost" onclick="AppUI.showSearch()">← 검색 다시하기</button>`;
     const wrap = document.getElementById('flight-list');
     list.forEach(f=>{
       const c = document.createElement('div');
       c.className='option-card';
       c.innerHTML = `
-        <div class="flight-top"><span class="flight-airline">✈ RAGIM AIR · ${f.no}</span>
+        <div class="flight-top">
+          <span class="flight-airline" style="color:${f.airlineColor}">${f.airlineIcon} ${f.airlineName} · ${f.no}</span>
           <span class="flight-price">${fmt(f.price)}</span></div>
         <div class="flight-route">
-          <div class="flight-time"><div class="t">${f.dep}</div><div class="c">${f.from} 인천</div></div>
+          <div class="flight-time"><div class="t">${f.dep}</div><div class="c">ICN 인천</div></div>
           <div class="flight-mid"><span>${f.dur} · 직항</span></div>
-          <div class="flight-time"><div class="t">${f.arr}</div><div class="c">${f.to} ${f.city.split(' ')[0]}</div></div>
+          <div class="flight-time"><div class="t">${f.arr}</div><div class="c">${f.to} ${f.city}</div></div>
+        </div>
+        <div style="margin-top:8px;display:flex;gap:6px;align-items:center;">
+          <span style="font-size:10px;background:${f.airlineColor}22;color:${f.airlineColor};padding:2px 8px;border-radius:6px;font-weight:700;">${f.airlineTag}</span>
+          <span style="font-size:11px;color:#8aa0c2;">${f.flag} ${f.country} · ${f.airport}공항</span>
         </div>`;
       c.onclick = ()=>{ Booking.flight=f; AppUI.showHotels(); };
       wrap.appendChild(c);
@@ -339,19 +391,20 @@ const AppUI = {
   showHotels(){
     this.setStep(2);
     const f = Booking.flight;
-    this.sub.textContent = `${f.dest}에서 머물 호텔을 골라보세요`;
+    this.sub.textContent = `${f.flag} ${f.city}에서 머물 호텔을 골라보세요`;
     this.el.innerHTML = `
       <div class="card" style="padding:12px 16px;">
-        <div class="summary-line"><span>선택한 항공편</span><b>${f.no} · ${f.city}</b></div>
+        <div class="summary-line"><span>선택한 항공편</span><b style="color:${f.airlineColor}">${f.airlineName} ${f.no}</b></div>
+        <div class="summary-line"><span>노선</span><b>인천 → ${f.flag} ${f.city}</b></div>
       </div>
       <div class="field"><label>숙박 일수</label>
         <select id="in-nights" onchange="Booking.nights=+this.value">
-          <option value="2" selected>2박 3일</option><option value="3">3박 4일</option><option value="4">4박 5일</option>
+          <option value="2" selected>2박 3일</option><option value="3">3박 4일</option><option value="4">4박 5일</option><option value="5">5박 6일</option>
         </select></div>
       <div id="hotel-list"></div>
       <button class="btn ghost" onclick="AppUI.searchFlights()">← 항공편 다시 선택</button>`;
     const wrap = document.getElementById('hotel-list');
-    HOTELS[f.to].forEach(h=>{
+    DESTS[f.to].hotels.forEach(h=>{
       const c = document.createElement('div');
       c.className='option-card';
       c.innerHTML = `
@@ -371,8 +424,10 @@ const AppUI = {
     this.el.innerHTML = `
       <div class="card">
         <h3>🧾 예약 내역</h3>
-        <div class="summary-line"><span>항공편</span><b>${f.no} · 인천 → ${f.city}</b></div>
+        <div class="summary-line"><span>항공편</span><b>${f.airlineName} ${f.no}</b></div>
+        <div class="summary-line"><span>노선</span><b>인천 → ${f.flag} ${f.city}</b></div>
         <div class="summary-line"><span>출발</span><b>${f.dep} (${f.dur})</b></div>
+        <div class="summary-line"><span>인원</span><b>성인 ${Booking.pax}명 × ${fmt(f.price)}</b></div>
         <div class="summary-line"><span>호텔</span><b>${h.name}</b></div>
         <div class="summary-line"><span>숙박</span><b>${Booking.nights}박 × ${fmt(h.price)}</b></div>
         <div class="total-line"><span>총 결제금액</span><span>${fmt(Booking.total())}</span></div>
@@ -402,11 +457,11 @@ function buildTicket(){
   const f = Booking.flight;
   Booking.seat = String(Math.floor(Math.random()*28)+2) + 'ABCDEF'[Math.floor(Math.random()*6)];
   document.getElementById('boarding-pass').innerHTML = `
-    <div class="bp-head"><span class="brand">RAGIM AIR</span><span class="cls">BOARDING PASS · ECONOMY</span></div>
+    <div class="bp-head"><span class="brand">${f.airlineName}</span><span class="cls">BOARDING PASS · ECONOMY</span></div>
     <div class="bp-route">
       <div><div class="bp-code">${f.from}</div><div class="bp-city">인천국제공항</div></div>
       <div class="bp-plane">──── ✈ ────</div>
-      <div style="text-align:right;"><div class="bp-code">${f.to}</div><div class="bp-city">${f.city}</div></div>
+      <div style="text-align:right;"><div class="bp-code">${f.to}</div><div class="bp-city">${f.flag} ${f.city} ${f.airport}</div></div>
     </div>
     <div class="bp-grid">
       <div><div class="k">PASSENGER</div><div class="v">${Booking.name}</div></div>
@@ -593,7 +648,9 @@ function makeSuitcase(color=0xd6336c){
   cyl(.05,.05,.1, 0x222, -.18,.05,.1, g); cyl(.05,.05,.1, 0x222, .18,.05,.1, g);
   return g;
 }
-function makePlane(){
+function makePlane(accentHex){
+  const accent = (accentHex!=null) ? accentHex : 0x1667ff;
+  const accentCss = '#' + accent.toString(16).padStart(6,'0');
   const g = new THREE.Group();
   const bodyMat = M(0xf5f7fb, {roughness:.25, metalness:.15});
   const body = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 18, 20), bodyMat);
@@ -613,12 +670,15 @@ function makePlane(){
   };
   mkWing(-1); mkWing(1);
   // 꼬리날개
-  const fin = new THREE.Mesh(new THREE.BoxGeometry(.25, 4, 3), M(0x1667ff,{roughness:.3}));
+  const fin = new THREE.Mesh(new THREE.BoxGeometry(.25, 4, 3), M(accent,{roughness:.3}));
   fin.position.set(0, 2.4, -13.2); fin.rotation.x = .25; fin.castShadow=true; g.add(fin);
   const hs = new THREE.Mesh(new THREE.BoxGeometry(7, .2, 2.2), wingMat);
   hs.position.set(0, .8, -13); g.add(hs);
-  // RAGIM 로고 스프라이트
-  const logo = textSprite('RAGIM AIR', 54, '#1667ff');
+  // 동체 컬러 스트라이프
+  box(.01, .5, 30, accent, 1.61, .1, -3, g, {emissive:accent, emissiveIntensity:.15});
+  box(.01, .5, 30, accent, -1.61, .1, -3, g, {emissive:accent, emissiveIntensity:.15});
+  // 항공사 로고 스프라이트
+  const logo = textSprite(Booking.flight ? Booking.flight.airlineName : 'RAGIM AIR', 54, accentCss);
   logo.position.set(0, 2.6, 3); logo.scale.multiplyScalar(.55); g.add(logo);
   // 창문들
   for(let i=-6;i<=6;i++){
@@ -778,7 +838,7 @@ const Airport = {
     staff.position.set(0,0,-1.4); counter.add(staff);
     // 안내판
     box(10.5,2,.2, 0x0b1d3a, 0, 4.4, -1.8, counter);
-    const ct = textSprite('RAGIM AIR CHECK-IN ✈', 56, '#ffb703');
+    const ct = textSprite(`${Booking.flight.airlineName} CHECK-IN ✈`, 56, '#ffb703');
     ct.position.set(0, 4.4, -1.6); ct.scale.multiplyScalar(.75); counter.add(ct);
     const cn = textSprite(`${Booking.flight.no} → ${Booking.flight.to}`, 44, '#ffffff');
     cn.position.set(0, 3.1, -1.6); cn.scale.multiplyScalar(.6); counter.add(cn);
@@ -834,7 +894,7 @@ const Airport = {
 
     animateFns.push(dt=>this.update(dt));
     Dialog.play([
-      ['공항 안내방송', `${Booking.flight.dest}행 RAGIM AIR ${Booking.flight.no}편 탑승 수속을 진행하고 있습니다.`],
+      ['공항 안내방송', `${Booking.flight.flag} ${Booking.flight.dest}행 ${Booking.flight.airlineName} ${Booking.flight.no}편 탑승 수속을 진행하고 있습니다.`],
       ['나', '체크인 카운터 찾았다. 캐리어 끌고 가자!'],
     ]);
   },
@@ -893,7 +953,7 @@ const Airport = {
   doCheckin(){
     this.checked = true;
     Dialog.play([
-      ['체크인 직원', `안녕하세요, RAGIM AIR입니다. 여권과 예약 확인 부탁드립니다.`],
+      ['체크인 직원', `안녕하세요, ${Booking.flight.airlineName}입니다. 여권과 예약 확인 부탁드립니다.`],
       ['나', `${Booking.name}입니다. ${Booking.flight.no}편 ${Booking.flight.dest}행이요!`],
       ['체크인 직원', `확인되었습니다. 좌석은 ${Booking.seat}번 창가… 아, 운 좋으시네요! 부치실 짐은 컨베이어에 올려주세요.`],
     ], ()=>{
@@ -928,7 +988,7 @@ const Airport = {
   doBoard(){
     this.boardingDone = true;
     Dialog.play([
-      ['탑승구 직원', `RAGIM AIR ${Booking.flight.no}편 탑승을 시작합니다. 탑승권 스캔해주세요.`],
+      ['탑승구 직원', `${Booking.flight.airlineName} ${Booking.flight.no}편 탑승을 시작합니다. 탑승권 스캔해주세요.`],
       ['나', `삑— (스캔 완료) ${Booking.seat}번 좌석… 드디어 간다, ${Booking.flight.dest}!`],
     ], ()=>{
       fade('out', ()=>{ Flight.build(); fade('in'); });
@@ -956,7 +1016,7 @@ const Flight = {
     // 공항 터미널 (뒤쪽)
     box(80,12,18, 0xe8edf5, -60, 6, 30);
     // 비행기
-    this.plane = makePlane();
+    this.plane = makePlane(Booking.flight.airlineColor ? parseInt(Booking.flight.airlineColor.slice(1),16) : 0x1667ff);
     this.plane.position.set(0, 1.9, 0);
     this.plane.rotation.y = Math.PI; // -z로 활주
     scene.add(this.plane);
@@ -1008,16 +1068,151 @@ const Flight = {
       pl.position.y += dt*2;
       camera.position.lerp(new THREE.Vector3(pl.position.x+24, pl.position.y+5, pl.position.z+26), .05);
       camera.lookAt(pl.position);
-      HUD.obj(`순항 중 — ${Booking.flight.dest}까지 ${Math.max(0, Math.round((6-this.cruiseT)*300))}km`);
+      HUD.obj(`순항 중 — ${Booking.flight.flag} ${Booking.flight.dest}까지 ${Math.max(0, Math.round((6-this.cruiseT)*300))}km`);
+      if(this.cruiseT > 4 && !this.announced){
+        this.announced = true;
+        Dialog.play([['기장', `잠시 후 ${Booking.flight.flag} ${Booking.flight.city} ${Booking.flight.airport} 공항에 착륙하겠습니다. 창밖을 봐주세요!`]]);
+      }
       if(this.cruiseT > 6){
         this.phase='done';
-        fade('out', ()=>Game.showEnd());
+        fade('out', ()=>{ Arrival.build(); fade('in'); });
       }
     }
     // 구름 스크롤
     this.clouds.forEach(c=>{
       if(c.position.z > pl.position.z + 120){ c.position.z -= 1500; c.position.x = (Math.random()-.5)*500; }
     });
+  }
+};
+
+// ================================================================
+//  나라별 랜드마크 3D 빌더
+// ================================================================
+function buildLandmark(type, hue){
+  const g = new THREE.Group();
+  if(type==='tower' || type==='eiffel'){        // 도쿄타워 / 에펠탑 (격자 철탑)
+    const legs = [[-4,-4],[4,-4],[-4,4],[4,4]];
+    legs.forEach(([x,z])=>{
+      const leg = box(1, 26, 1, hue, x, 13, z, g, {metalness:.3, roughness:.5});
+      leg.rotation.z = Math.atan2(x, 26)*.9 * (x>0?-1:1);
+      leg.rotation.x = Math.atan2(z, 26)*.9 * (z>0?-1:1);
+    });
+    box(9,1.2,9, hue, 0, 8, 0, g);          // 1층 전망대
+    box(6,1,6, hue, 0, 17, 0, g);           // 2층
+    box(2.4,10,2.4, hue, 0, 27, 0, g);      // 상단
+    cyl(.2,.2,7, hue, 0, 36, 0, g, 8);      // 안테나
+    if(type==='eiffel'){ const arc = box(9,.6,.6, hue, 0, 6, 4.5, g); }
+  } else if(type==='castle'){                  // 오사카성 (기와 지붕)
+    box(14,7,14, 0xdfe3ea, 0, 3.5, 0, g, {roughness:.7});
+    const roof=(w,y)=>{ const r=box(w,1.6,w,0x2f6b3d,0,y,0,g,{roughness:.6}); box(w+2,.5,w+2,0xcaa64a,0,y-1,0,g); };
+    box(11,5,11, 0xf1f2f4, 0, 9, 0, g); roof(13, 6.5);
+    box(8,4,8, 0xf1f2f4, 0, 13, 0, g);   roof(10, 11);
+    box(5,3.5,5, 0xf1f2f4, 0, 16.5, 0, g); roof(7, 15);
+    box(4,.4,4, 0xcaa64a, 0, 18.5, 0, g);
+    cyl(.3,.3,2, 0xcaa64a, 0, 19.6, 0, g, 8);
+  } else if(type==='temple'){                  // 태국 사원 (황금 첨탑)
+    box(12,3,12, 0xe9e2cf, 0, 1.5, 0, g);
+    const spire=(x,z,s)=>{ cyl(0, 2*s, 10*s, hue, x, 5*s, z, g, 8); box(2*s,3*s,2*s, 0xf3ead0, x, 2*s, z, g); };
+    spire(0,0,1.4); spire(-6,-6,.7); spire(6,-6,.7); spire(-6,6,.7); spire(6,6,.7);
+    box(14,.6,14, 0xcaa64a, 0, .3, 0, g);
+  } else if(type==='statue'){                  // 자유의 여신상
+    box(10,6,10, 0x8a8f99, 0, 3, 0, g, {roughness:.8});   // 받침대
+    box(6,5,6, 0x6f7480, 0, 8, 0, g);
+    cyl(2,2.4,7, hue, 0, 14, 0, g, 12);                    // 로브
+    const head = new THREE.Mesh(new THREE.SphereGeometry(1.4,12,10), M(hue)); head.position.y=18.5; g.add(head);
+    // 왕관
+    for(let i=0;i<7;i++){ const a=(i/6-.5)*2.4; box(.3,1.4,.3, hue, Math.sin(a)*1.7, 20, Math.cos(a)*1.7, g); }
+    cyl(.35,.35,6, 0x9aa0ab, 2.6, 19, 0, g, 8);            // 팔
+    cyl(0,1.2,2.5, 0xffcf5a, 3.2, 22.5, 0, g, 8, {emissive:0xffcf5a, emissiveIntensity:.6}); // 횃불
+  } else if(type==='beach'){                   // 해변 (야자수 + 파라솔)
+    const palm=(x,z)=>{ const t=cyl(.3,.5,7,0x8b5a2b,x,3.5,z,g,8); t.rotation.z=.12;
+      for(let i=0;i<6;i++){ const a=i/6*6.28; const l=box(4,.2,1.2,0x2e9e4f,x+Math.cos(a)*2,7,z+Math.sin(a)*2,g); l.rotation.y=a; l.rotation.z=.4; } };
+    palm(-5,0); palm(5,-3); palm(0,4);
+    // 파라솔
+    cyl(.15,.15,3,0xffffff,8,1.5,2,g,8); cyl(0,3,1.5,0xff6b6b,8,3.3,2,g,10);
+  } else if(type==='city'){                    // 도시 마천루 (싱가포르)
+    const cols=[0x6ea8e0,0x8ec5e6,0x5b8fd4,0xa9d3ee];
+    for(let i=0;i<7;i++){ const h=10+Math.random()*20; box(3+Math.random()*2,h,3+Math.random()*2,cols[i%4],(i-3)*4.5,h/2,(i%2)*3,g,{roughness:.2,metalness:.3,emissive:0x223, emissiveIntensity:.2}); }
+    // 옥상 배(마리나베이 느낌)
+    box(22,1.2,4, 0xd8dee8, 0, 30, 0, g, {roughness:.3});
+  }
+  return g;
+}
+
+// ================================================================
+//  PHASE 4 — 도착 (착륙)
+// ================================================================
+const Arrival = {
+  plane:null, phase:'descend', speed:120,
+  build(){
+    const f = Booking.flight;
+    newScene(f.sky[0], f.sky[1], f.sky[1], 900);
+    mode='arrival'; this.phase='descend'; this.speed=120;
+    // 지면 (나라 테마 색)
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(4000,4000), M(f.ground));
+    ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; scene.add(ground);
+    // 활주로
+    const runway = new THREE.Mesh(new THREE.PlaneGeometry(26, 2400), M(0x353c48));
+    runway.rotation.x=-Math.PI/2; runway.position.set(0,.02,-900); runway.receiveShadow=true; scene.add(runway);
+    for(let z=100; z>-2000; z-=20){ const d=new THREE.Mesh(new THREE.PlaneGeometry(.9,9),M(0xfff3c2)); d.rotation.x=-Math.PI/2; d.position.set(0,.03,z); scene.add(d); }
+    // 도착 공항 터미널 + 국기/도시명
+    box(90,14,20, 0xe8edf5, 0, 7, 60, scene, {roughness:.4});
+    box(94,1.4,24, 0x1667ff, 0, 14.6, 60);
+    const sign = textSprite(`${f.flag} ${f.airport} INTL · ${f.city.toUpperCase()}`, 58, '#0b1d3a');
+    sign.position.set(0, 17.5, 71); scene.add(sign);
+    const welcome = textSprite(`WELCOME TO ${f.country}`, 44, '#1667ff');
+    welcome.position.set(0, 20, 71); welcome.scale.multiplyScalar(.75); scene.add(welcome);
+    // 랜드마크 (도시 배경)
+    const lm = buildLandmark(f.type, f.hue);
+    lm.position.set(-70, 0, -140); lm.scale.setScalar(2.4); scene.add(lm);
+    const lm2 = buildLandmark(f.type, f.hue);
+    lm2.position.set(85, 0, -240); lm2.scale.setScalar(2.0); scene.add(lm2);
+    // 주변 도시 실루엣
+    for(let i=0;i<24;i++){ const x=(Math.random()-.5)*600; const z=-120-Math.random()*500; if(Math.abs(x)<40)continue;
+      box(6+Math.random()*8, 10+Math.random()*40, 6+Math.random()*8, f.ground, x, 0, z, scene, {roughness:.6}).position.y = (10+Math.random()*40)/2; }
+    // 비행기 (하늘 높이서 진입)
+    this.plane = makePlane(f.airlineColor ? parseInt(f.airlineColor.slice(1),16) : 0x1667ff);
+    this.plane.position.set(0, 140, 500);
+    this.plane.rotation.set(-.18, Math.PI, 0);
+    scene.add(this.plane);
+    // 구름
+    for(let i=0;i<20;i++){ const c=new THREE.Group(); for(let j=0;j<3;j++){ const s=new THREE.Mesh(new THREE.SphereGeometry(4+Math.random()*4,8,6),M(0xffffff,{roughness:1,transparent:true,opacity:.85})); s.position.set((Math.random()-.5)*10,(Math.random()-.5)*2,(Math.random()-.5)*6); c.add(s);} c.position.set((Math.random()-.5)*400,60+Math.random()*70,-Math.random()*600); scene.add(c); }
+
+    HUD.show();
+    HUD.title(`🛬 ${f.flag} ${f.city} ${f.airport} 공항 — 착륙 중`);
+    HUD.obj('곧 착륙합니다');
+    HUD.prompt(null);
+    animateFns.push(dt=>this.update(dt));
+  },
+  update(dt){
+    const pl = this.plane, f = Booking.flight;
+    if(this.phase==='descend'){
+      pl.position.z -= this.speed*dt;
+      // 활주로 착지점(z≈-100, y≈2)을 향해 하강
+      const targetY = 2 + Math.max(0, (pl.position.z + 100)) * 0.26;
+      pl.position.y = THREE.MathUtils.lerp(pl.position.y, targetY, dt*2.2);
+      pl.rotation.x = THREE.MathUtils.lerp(pl.rotation.x, -.12, dt);
+      HUD.obj(`고도 ${Math.max(0,Math.round(pl.position.y*30))}m · ${f.city} 상공`);
+      camera.position.lerp(new THREE.Vector3(pl.position.x+26, pl.position.y+9, pl.position.z+34), .05);
+      camera.lookAt(pl.position.x, pl.position.y, pl.position.z-20);
+      if(pl.position.y < 3.2 && pl.position.z < 40){ this.phase='rollout'; }
+    } else if(this.phase==='rollout'){
+      this.speed = Math.max(this.speed - dt*40, 0);
+      pl.position.z -= this.speed*dt;
+      pl.position.y = THREE.MathUtils.lerp(pl.position.y, 1.9, dt*4);
+      pl.rotation.x = THREE.MathUtils.lerp(pl.rotation.x, 0, dt*3);
+      HUD.obj(`착륙! 감속 중… ${Math.round(this.speed*4)}km/h`);
+      camera.position.lerp(new THREE.Vector3(pl.position.x+22, 7, pl.position.z+30), .06);
+      camera.lookAt(pl.position);
+      if(this.speed < 3){
+        this.phase='done';
+        HUD.obj('도착 완료 🎉');
+        Dialog.play([
+          ['기장', `${f.flag} ${f.city}에 안전하게 착륙했습니다. 즐거운 여행 되세요!`],
+          ['승무원', `현지 시각 ${f.arr}, 날씨 맑음. ${f.airlineName}와 함께해 주셔서 감사합니다 ✈`],
+        ], ()=> fade('out', ()=>Game.showEnd()) );
+      }
+    }
   }
 };
 
@@ -1046,11 +1241,11 @@ const Game = {
   showEnd(){
     HUD.hide();
     const f = Booking.flight, h = Booking.hotel;
-    document.getElementById('end-title').textContent = `${f.dest} 도착! ${f.landmark}`;
+    document.getElementById('end-title').textContent = `${f.flag} ${f.city} 도착! ${f.landmark}`;
     document.getElementById('end-summary').innerHTML =
-      `${Booking.name}님, ${f.no}편으로 ${f.city}에 무사히 도착했어요.<br>` +
-      `이제 <b>${h.name}</b>에 체크인하고 ${f.landmarkName}부터 구경 가볼까요?<br><br>` +
-      `✈ ${f.from} → ${f.to} · 좌석 ${Booking.seat} · ${Booking.nights}박 ${Booking.nights+1}일 · 총 ${fmt(Booking.total())}`;
+      `${Booking.name}님, ${f.airlineName} ${f.no}편으로<br>${f.country} ${f.city}에 무사히 도착했어요!<br>` +
+      `이제 <b>${h.name}</b>에 체크인하고 ${f.landmark} ${f.landmarkName}부터 구경 가볼까요?<br><br>` +
+      `✈ ${f.from} → ${f.to} · 좌석 ${Booking.seat} · 성인 ${Booking.pax}명 · ${Booking.nights}박 ${Booking.nights+1}일<br>총 ${fmt(Booking.total())}`;
     this.show('end-screen');
     fade('in');
   }
