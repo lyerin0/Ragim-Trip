@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>RAGIM TRIP — 일본여행 시뮬레이터</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  :root {
+    --navy:#0b1d3a; --blue:#1667ff; --sky:#e8f1ff; --sun:#ffb703;
+    --ink:#12203a; --line:#dbe6f7; --ok:#12b76a; --paper:#ffffff;
+  }
+  html,body { width:100%; height:100%; overflow:hidden; font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',sans-serif; background:var(--navy); }
+  #game-canvas { position:fixed; inset:0; display:block; }
+
+  /* ---------- 공통 오버레이 ---------- */
+  .screen { position:fixed; inset:0; display:none; z-index:10; }
+  .screen.active { display:flex; }
+
+  /* ---------- 예매 앱 ---------- */
+  #app-screen { background:linear-gradient(160deg,#0b1d3a 0%,#123a7a 60%,#1667ff 130%); align-items:center; justify-content:center; }
+  .phone {
+    width:min(420px, 100%); height:min(860px,100%); background:var(--sky);
+    border-radius:0; overflow:hidden; display:flex; flex-direction:column; position:relative;
+  }
+  @media (min-width:480px){ .phone{ border-radius:28px; box-shadow:0 30px 80px rgba(0,0,0,.5); height:min(860px, 94vh);} }
+  .app-header { background:var(--navy); color:#fff; padding:18px 20px 14px; flex-shrink:0; }
+  .app-brand { display:flex; align-items:center; gap:8px; font-weight:800; letter-spacing:1px; font-size:15px; }
+  .app-brand .logo { width:26px; height:26px; background:var(--sun); border-radius:8px; display:grid; place-items:center; font-size:15px; }
+  .app-sub { font-size:12px; opacity:.65; margin-top:4px; }
+  .app-body { flex:1; overflow-y:auto; padding:16px; }
+  .app-body::-webkit-scrollbar{ width:0; }
+
+  .card { background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:16px; margin-bottom:12px; }
+  .card h3 { font-size:15px; color:var(--ink); margin-bottom:12px; display:flex; align-items:center; gap:6px; }
+  .field { margin-bottom:10px; }
+  .field label { display:block; font-size:11px; color:#5a6d8c; margin-bottom:4px; font-weight:600; }
+  .field input, .field select {
+    width:100%; padding:12px; border:1.5px solid var(--line); border-radius:10px; font-size:14px;
+    background:#fff; color:var(--ink); outline:none; font-family:inherit;
+  }
+  .field input:focus, .field select:focus { border-color:var(--blue); }
+  .row2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+  .btn {
+    display:block; width:100%; padding:14px; border:none; border-radius:12px; cursor:pointer;
+    background:var(--blue); color:#fff; font-size:15px; font-weight:700; font-family:inherit;
+    transition:transform .1s, filter .15s;
+  }
+  .btn:active { transform:scale(.98); }
+  .btn:hover { filter:brightness(1.08); }
+  .btn.ghost { background:#fff; color:var(--blue); border:1.5px solid var(--blue); }
+  .btn:disabled { background:#b9c6dd; cursor:not-allowed; }
+
+  /* 항공편/호텔 리스트 */
+  .option-card {
+    background:#fff; border:2px solid var(--line); border-radius:14px; padding:14px; margin-bottom:10px;
+    cursor:pointer; transition:border-color .15s, transform .1s;
+  }
+  .option-card:hover { transform:translateY(-1px); }
+  .option-card.selected { border-color:var(--blue); background:#f2f7ff; }
+  .flight-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .flight-airline { font-size:12px; font-weight:700; color:var(--blue); }
+  .flight-price { font-size:16px; font-weight:800; color:var(--ink); }
+  .flight-route { display:flex; align-items:center; justify-content:space-between; }
+  .flight-time { text-align:center; }
+  .flight-time .t { font-size:19px; font-weight:800; color:var(--ink); }
+  .flight-time .c { font-size:11px; color:#5a6d8c; }
+  .flight-mid { flex:1; text-align:center; font-size:11px; color:#8aa0c2; position:relative; padding:0 8px; }
+  .flight-mid::before { content:''; position:absolute; left:10%; right:10%; top:50%; border-top:1.5px dashed #c4d4ee; }
+  .flight-mid span { background:inherit; position:relative; background:#fff; padding:0 6px; }
+  .option-card.selected .flight-mid span { background:#f2f7ff; }
+  .hotel-name { font-size:14px; font-weight:800; color:var(--ink); }
+  .hotel-meta { font-size:12px; color:#5a6d8c; margin:4px 0; }
+  .hotel-price { font-size:15px; font-weight:800; color:var(--blue); }
+  .stars { color:var(--sun); font-size:12px; letter-spacing:1px; }
+
+  .step-dots { display:flex; gap:6px; margin-top:10px; }
+  .step-dots i { width:22px; height:4px; border-radius:2px; background:rgba(255,255,255,.2); }
+  .step-dots i.on { background:var(--sun); }
+
+  .summary-line { display:flex; justify-content:space-between; font-size:13px; color:var(--ink); padding:6px 0; border-bottom:1px dashed var(--line); }
+  .summary-line:last-child { border-bottom:none; }
+  .summary-line b { font-weight:800; }
+  .total-line { display:flex; justify-content:space-between; font-size:16px; font-weight:800; color:var(--ink); padding-top:10px; }
+  .total-line span:last-child { color:var(--blue); }
+
+  /* ---------- 탑승권 ---------- */
+  #ticket-screen { background:rgba(6,14,30,.92); align-items:center; justify-content:center; flex-direction:column; padding:16px; }
+  .boarding-pass {
+    width:min(400px,100%); background:#fff; border-radius:18px; overflow:hidden;
+    box-shadow:0 30px 80px rgba(0,0,0,.6); animation:passIn .6s cubic-bezier(.2,1.4,.4,1);
+  }
+  @keyframes passIn { from{ transform:translateY(60px) rotate(-3deg); opacity:0;} to{ transform:none; opacity:1;} }
+  .bp-head { background:var(--navy); color:#fff; padding:16px 20px; display:flex; justify-content:space-between; align-items:center; }
+  .bp-head .brand { font-weight:800; letter-spacing:2px; font-size:13px; color:var(--sun); }
+  .bp-head .cls { font-size:11px; opacity:.7; }
+  .bp-route { display:flex; align-items:center; justify-content:space-between; padding:20px; }
+  .bp-code { font-size:34px; font-weight:900; color:var(--ink); }
+  .bp-city { font-size:11px; color:#5a6d8c; margin-top:2px; }
+  .bp-plane { font-size:20px; color:var(--blue); }
+  .bp-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; padding:0 20px 16px; }
+  .bp-grid .k { font-size:10px; color:#8aa0c2; font-weight:700; }
+  .bp-grid .v { font-size:14px; color:var(--ink); font-weight:800; margin-top:2px; }
+  .bp-tear { border-top:2px dashed #c4d4ee; position:relative; }
+  .bp-tear::before, .bp-tear::after {
+    content:''; position:absolute; top:-11px; width:22px; height:22px; border-radius:50%; background:rgba(6,14,30,.92);
+  }
+  .bp-tear::before{ left:-11px; } .bp-tear::after{ right:-11px; }
+  .bp-barcode { height:52px; margin:16px 20px; background:repeating-linear-gradient(90deg,#12203a 0 2px,transparent 2px 5px,#12203a 5px 8px,transparent 8px 10px,#12203a 10px 11px,transparent 11px 15px); border-radius:4px; }
+  .bp-note { text-align:center; font-size:11px; color:#8aa0c2; padding-bottom:16px; }
+  #ticket-screen .btn { width:min(400px,100%); margin-top:16px; }
+
+  /* ---------- 게임 HUD ---------- */
+  #hud { position:fixed; inset:0; pointer-events:none; z-index:5; display:none; }
+  #hud.active { display:block; }
+  .hud-top {
+    position:absolute; top:14px; left:50%; transform:translateX(-50%);
+    background:rgba(6,14,30,.75); color:#fff; padding:10px 22px; border-radius:999px;
+    font-size:14px; font-weight:700; backdrop-filter:blur(6px); white-space:nowrap; max-width:94vw;
+    text-overflow:ellipsis; overflow:hidden; border:1px solid rgba(255,255,255,.12);
+  }
+  .hud-obj { position:absolute; top:64px; left:50%; transform:translateX(-50%); background:rgba(22,103,255,.85); color:#fff; padding:6px 16px; border-radius:999px; font-size:12px; font-weight:600; }
+  #interact-prompt {
+    position:absolute; bottom:130px; left:50%; transform:translateX(-50%);
+    background:#fff; color:var(--ink); padding:10px 18px; border-radius:12px; font-size:14px; font-weight:700;
+    display:none; box-shadow:0 8px 24px rgba(0,0,0,.35); animation:bob 1s ease-in-out infinite;
+  }
+  @keyframes bob { 50%{ transform:translateX(-50%) translateY(-5px);} }
+  #interact-prompt kbd { background:var(--navy); color:var(--sun); border-radius:6px; padding:2px 8px; margin-right:6px; font-family:inherit; }
+
+  /* 터치 컨트롤 */
+  #touch-controls { position:absolute; inset:0; display:none; }
+  body.touch #touch-controls { display:block; }
+  .dpad { position:absolute; bottom:24px; left:20px; width:150px; height:150px; pointer-events:none; }
+  .dpad button, #btn-action {
+    pointer-events:auto; position:absolute; width:50px; height:50px; border-radius:14px; border:none;
+    background:rgba(255,255,255,.18); color:#fff; font-size:20px; backdrop-filter:blur(4px);
+    border:1px solid rgba(255,255,255,.25); touch-action:none;
+  }
+  .dpad button:active { background:rgba(255,255,255,.4); }
+  #tc-up{ left:50px; top:0; } #tc-down{ left:50px; bottom:0; } #tc-left{ left:0; top:50px; } #tc-right{ right:0; top:50px; }
+  #btn-action { right:26px; bottom:50px; width:66px; height:66px; border-radius:50%; background:rgba(255,183,3,.85); color:var(--navy); font-weight:900; font-size:16px; }
+
+  /* ---------- 전환/대화 ---------- */
+  #fade { position:fixed; inset:0; background:#04101f; opacity:0; pointer-events:none; transition:opacity .6s; z-index:50; }
+  #dialog-box {
+    position:fixed; bottom:26px; left:50%; transform:translateX(-50%); width:min(560px,92vw);
+    background:rgba(255,255,255,.97); border-radius:16px; padding:18px 20px; z-index:20; display:none;
+    box-shadow:0 16px 50px rgba(0,0,0,.45);
+  }
+  #dialog-name { font-size:12px; font-weight:800; color:var(--blue); margin-bottom:4px; }
+  #dialog-text { font-size:15px; color:var(--ink); line-height:1.55; min-height:44px; }
+  #dialog-next { margin-top:10px; text-align:right; font-size:12px; color:#8aa0c2; animation:bob2 1.2s infinite; }
+  @keyframes bob2 { 50%{opacity:.4;} }
+
+  /* ---------- 엔딩 ---------- */
+  #end-screen { background:linear-gradient(180deg,#ff9a8b 0%,#ff6a88 40%,#5b247a 100%); align-items:center; justify-content:center; flex-direction:column; text-align:center; padding:20px; }
+  #end-screen h1 { color:#fff; font-size:clamp(34px,8vw,56px); text-shadow:0 6px 24px rgba(0,0,0,.3); }
+  #end-screen p { color:rgba(255,255,255,.9); margin:14px 0 24px; font-size:15px; line-height:1.7; }
+  #end-screen .btn { width:min(320px,90vw); background:#fff; color:#5b247a; }
+  .end-emoji { font-size:70px; margin-bottom:10px; animation:bob 2s infinite; }
+
+  /* 인트로 */
+  #intro-screen { background:radial-gradient(120% 120% at 50% 0%,#123a7a 0%,#0b1d3a 60%,#04101f 100%); align-items:center; justify-content:center; flex-direction:column; text-align:center; padding:20px; }
+  #intro-screen h1 { color:#fff; font-size:clamp(36px,9vw,64px); letter-spacing:4px; font-weight:900; }
+  #intro-screen h1 span { color:var(--sun); }
+  #intro-screen .tag { color:#9db6e4; margin:12px 0 30px; font-size:15px; line-height:1.7; }
+  #intro-screen .btn { width:min(320px,90vw); }
+  .intro-plane { font-size:64px; margin-bottom:14px; animation:fly 3s ease-in-out infinite; }
+  @keyframes fly { 0%,100%{ transform:translate(0,0) rotate(0);} 50%{ transform:translate(14px,-12px) rotate(6deg);} }
+</style>
+</head>
+<body>
+<canvas id="game-canvas"></canvas>
+<div id="fade"></div>
+
+<!-- ===== 인트로 ===== -->
+<div id="intro-screen" class="screen active">
+  <div class="intro-plane">✈️</div>
+  <h1>RAGIM <span>TRIP</span></h1>
+  <p class="tag">항공권 예매부터 공항 체크인, 이륙까지<br>일본여행의 모든 순간을 3D로 체험하세요</p>
+  <button class="btn" onclick="Game.startBooking()">여행 시작하기</button>
+</div>
+
+<!-- ===== 예매 앱 ===== -->
+<div id="app-screen" class="screen">
+  <div class="phone">
+    <div class="app-header">
+      <div class="app-brand"><div class="logo">✈️</div> RAGIM TRIP</div>
+      <div class="app-sub" id="app-sub">일본행 항공권을 검색해보세요</div>
+      <div class="step-dots" id="step-dots">
+        <i class="on"></i><i></i><i></i><i></i>
+      </div>
+    </div>
+    <div class="app-body" id="app-body"></div>
+  </div>
+</div>
+
+<!-- ===== 탑승권 ===== -->
+<div id="ticket-screen" class="screen">
+  <div class="boarding-pass" id="boarding-pass"></div>
+  <button class="btn" onclick="Game.startDrive()">🚗 공항으로 출발하기</button>
+</div>
+
+<!-- ===== HUD ===== -->
+<div id="hud">
+  <div class="hud-top" id="hud-title"></div>
+  <div class="hud-obj" id="hud-obj"></div>
+  <div id="interact-prompt"><kbd>E</kbd><span id="prompt-text"></span></div>
+  <div id="touch-controls">
+    <div class="dpad">
+      <button id="tc-up">▲</button><button id="tc-down">▼</button>
+      <button id="tc-left">◀</button><button id="tc-right">▶</button>
+    </div>
+    <button id="btn-action">E</button>
+  </div>
+</div>
+
+<!-- ===== 대화창 ===== -->
+<div id="dialog-box">
+  <div id="dialog-name"></div>
+  <div id="dialog-text"></div>
+  <div id="dialog-next">클릭해서 계속 ▾</div>
+</div>
+
+<!-- ===== 엔딩 ===== -->
+<div id="end-screen" class="screen">
+  <div class="end-emoji">🗼</div>
+  <h1 id="end-title">일본 도착!</h1>
+  <p id="end-summary"></p>
+  <button class="btn" onclick="location.reload()">다시 여행하기</button>
+</div>
+
+<script>
+/* ================================================================
+   RAGIM TRIP — 일본여행 3D 시뮬레이터
+   예매(2D 앱) → 드라이브(3D) → 공항 체크인(3D) → 이륙(3D) → 엔딩
+================================================================ */
+
+// ---------------- 데이터 ----------------
+const FLIGHTS = [
+  { no:'RA101', from:'ICN', to:'NRT', city:'도쿄 (나리타)', dep:'08:30', arr:'11:00', dur:'2시간 30분', price:189000, gate:'GATE 12', dest:'도쿄', landmark:'🗼', landmarkName:'도쿄타워' },
+  { no:'RA205', from:'ICN', to:'KIX', city:'오사카 (간사이)', dep:'10:15', arr:'12:05', dur:'1시간 50분', price:159000, gate:'GATE 12', dest:'오사카', landmark:'🏯', landmarkName:'오사카성' },
+  { no:'RA330', from:'ICN', to:'FUK', city:'후쿠오카', dep:'13:40', arr:'15:00', dur:'1시간 20분', price:129000, gate:'GATE 12', dest:'후쿠오카', landmark:'🍜', landmarkName:'하카타 라멘거리' },
+  { no:'RA412', from:'ICN', to:'CTS', city:'삿포로 (신치토세)', dep:'09:00', arr:'11:45', dur:'2시간 45분', price:219000, gate:'GATE 12', dest:'삿포로', landmark:'⛄', landmarkName:'오도리 공원' },
+];
+const HOTELS = {
+  NRT: [
+    { name:'시부야 스카이 호텔', stars:5, meta:'시부야역 도보 3분 · 조식 포함', price:180000 },
+    { name:'아사쿠사 료칸 하나', stars:4, meta:'센소지 앞 · 온천 있음', price:120000 },
+    { name:'신주쿠 캡슐 인', stars:3, meta:'가성비 최고 · 신주쿠역 1분', price:45000 },
+  ],
+  KIX: [
+    { name:'도톤보리 리버 호텔', stars:5, meta:'글리코상 바로 앞 · 야경 명당', price:170000 },
+    { name:'난바 스테이', stars:4, meta:'난바역 직결 · 조식 포함', price:110000 },
+    { name:'우메다 비즈니스 호텔', stars:3, meta:'우메다역 5분 · 깔끔함', price:55000 },
+  ],
+  FUK: [
+    { name:'하카타 오션뷰 호텔', stars:5, meta:'바다 전망 · 온천 있음', price:160000 },
+    { name:'텐진 시티 호텔', stars:4, meta:'텐진 중심가 · 쇼핑 최적', price:95000 },
+    { name:'캐널시티 인', stars:3, meta:'캐널시티 도보 2분', price:50000 },
+  ],
+  CTS: [
+    { name:'삿포로 그랜드 온천호텔', stars:5, meta:'노천 온천 · 조식 뷔페', price:200000 },
+    { name:'스스키노 타워 호텔', stars:4, meta:'스스키노역 1분 · 야경', price:130000 },
+    { name:'오도리 파크 인', stars:3, meta:'오도리 공원 앞', price:60000 },
+  ],
+};
+
+const Booking = {
+  name:'', flight:null, hotel:null, nights:2, seat:'',
+  total(){ return (this.flight?this.flight.price:0) + (this.hotel?this.hotel.price*this.nights:0); }
+};
+const fmt = n => n.toLocaleString('ko-KR') + '원';
+
+// ---------------- 예매 앱 UI ----------------
+const AppUI = {
+  el: document.getElementById('app-body'),
+  sub: document.getElementById('app-sub'),
+  dots: document.getElementById('step-dots'),
+  setStep(i){ [...this.dots.children].forEach((d,idx)=>d.classList.toggle('on', idx<=i)); },
+
+  showSearch(){
+    this.setStep(0);
+    this.sub.textContent = '일본행 항공권을 검색해보세요';
+    this.el.innerHTML = `
+      <div class="card">
+        <h3>🔍 항공권 검색</h3>
+        <div class="field"><label>여행자 이름</label>
+          <input id="in-name" placeholder="탑승권에 표시될 이름" maxlength="12" value="${Booking.name}"></div>
+        <div class="row2">
+          <div class="field"><label>출발지</label><input value="인천 (ICN)" disabled></div>
+          <div class="field"><label>도착지</label>
+            <select id="in-dest">
+              <option value="">전체 일본</option>
+              <option value="NRT">도쿄</option><option value="KIX">오사카</option>
+              <option value="FUK">후쿠오카</option><option value="CTS">삿포로</option>
+            </select></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>출발일</label><input type="date" id="in-date"></div>
+          <div class="field"><label>인원</label><select><option>성인 1명</option></select></div>
+        </div>
+        <button class="btn" onclick="AppUI.searchFlights()">항공권 검색</button>
+      </div>`;
+    const d = new Date(); d.setDate(d.getDate()+7);
+    document.getElementById('in-date').value = d.toISOString().slice(0,10);
+  },
+
+  searchFlights(){
+    const name = document.getElementById('in-name').value.trim();
+    if(!name){ alert('여행자 이름을 입력해주세요!'); return; }
+    Booking.name = name;
+    const dest = document.getElementById('in-dest').value;
+    const list = dest ? FLIGHTS.filter(f=>f.to===dest) : FLIGHTS;
+    this.setStep(1);
+    this.sub.textContent = '마음에 드는 항공편을 선택하세요';
+    this.el.innerHTML = `<div id="flight-list"></div>
+      <button class="btn ghost" onclick="AppUI.showSearch()">← 다시 검색</button>`;
+    const wrap = document.getElementById('flight-list');
+    list.forEach(f=>{
+      const c = document.createElement('div');
+      c.className='option-card';
+      c.innerHTML = `
+        <div class="flight-top"><span class="flight-airline">✈ RAGIM AIR · ${f.no}</span>
+          <span class="flight-price">${fmt(f.price)}</span></div>
+        <div class="flight-route">
+          <div class="flight-time"><div class="t">${f.dep}</div><div class="c">${f.from} 인천</div></div>
+          <div class="flight-mid"><span>${f.dur} · 직항</span></div>
+          <div class="flight-time"><div class="t">${f.arr}</div><div class="c">${f.to} ${f.city.split(' ')[0]}</div></div>
+        </div>`;
+      c.onclick = ()=>{ Booking.flight=f; AppUI.showHotels(); };
+      wrap.appendChild(c);
+    });
+  },
+
+  showHotels(){
+    this.setStep(2);
+    const f = Booking.flight;
+    this.sub.textContent = `${f.dest}에서 머물 호텔을 골라보세요`;
+    this.el.innerHTML = `
+      <div class="card" style="padding:12px 16px;">
+        <div class="summary-line"><span>선택한 항공편</span><b>${f.no} · ${f.city}</b></div>
+      </div>
+      <div class="field"><label>숙박 일수</label>
+        <select id="in-nights" onchange="Booking.nights=+this.value">
+          <option value="2" selected>2박 3일</option><option value="3">3박 4일</option><option value="4">4박 5일</option>
+        </select></div>
+      <div id="hotel-list"></div>
+      <button class="btn ghost" onclick="AppUI.searchFlights()">← 항공편 다시 선택</button>`;
+    const wrap = document.getElementById('hotel-list');
+    HOTELS[f.to].forEach(h=>{
+      const c = document.createElement('div');
+      c.className='option-card';
+      c.innerHTML = `
+        <div class="hotel-name">${h.name}</div>
+        <div class="stars">${'★'.repeat(h.stars)}${'☆'.repeat(5-h.stars)}</div>
+        <div class="hotel-meta">${h.meta}</div>
+        <div class="hotel-price">${fmt(h.price)} <span style="font-size:11px;color:#8aa0c2;font-weight:600;">/ 1박</span></div>`;
+      c.onclick = ()=>{ Booking.hotel=h; AppUI.showPayment(); };
+      wrap.appendChild(c);
+    });
+  },
+
+  showPayment(){
+    this.setStep(3);
+    this.sub.textContent = '마지막 단계! 결제를 완료하세요';
+    const f=Booking.flight, h=Booking.hotel;
+    this.el.innerHTML = `
+      <div class="card">
+        <h3>🧾 예약 내역</h3>
+        <div class="summary-line"><span>항공편</span><b>${f.no} · 인천 → ${f.city}</b></div>
+        <div class="summary-line"><span>출발</span><b>${f.dep} (${f.dur})</b></div>
+        <div class="summary-line"><span>호텔</span><b>${h.name}</b></div>
+        <div class="summary-line"><span>숙박</span><b>${Booking.nights}박 × ${fmt(h.price)}</b></div>
+        <div class="total-line"><span>총 결제금액</span><span>${fmt(Booking.total())}</span></div>
+      </div>
+      <div class="card">
+        <h3>💳 결제 수단 <span style="font-size:10px;color:#8aa0c2;font-weight:500;">(가상 결제 · 실제로 결제되지 않아요)</span></h3>
+        <div class="field"><label>카드 번호</label><input value="1234 - 5678 - RAGIM - PAY" disabled></div>
+        <div class="row2">
+          <div class="field"><label>유효기간</label><input value="12 / 99" disabled></div>
+          <div class="field"><label>CVC</label><input value="•••" disabled></div>
+        </div>
+        <button class="btn" id="pay-btn" onclick="AppUI.pay()">${fmt(Booking.total())} 결제하기</button>
+      </div>
+      <button class="btn ghost" onclick="AppUI.showHotels()">← 호텔 다시 선택</button>`;
+  },
+
+  pay(){
+    const btn = document.getElementById('pay-btn');
+    btn.disabled = true; btn.textContent = '결제 처리중...';
+    setTimeout(()=>{ btn.textContent='✓ 결제 완료!'; btn.style.background='var(--ok)'; }, 900);
+    setTimeout(()=>{ Game.showTicket(); }, 1800);
+  }
+};
+
+// ---------------- 탑승권 ----------------
+function buildTicket(){
+  const f = Booking.flight;
+  Booking.seat = String(Math.floor(Math.random()*28)+2) + 'ABCDEF'[Math.floor(Math.random()*6)];
+  document.getElementById('boarding-pass').innerHTML = `
+    <div class="bp-head"><span class="brand">RAGIM AIR</span><span class="cls">BOARDING PASS · ECONOMY</span></div>
+    <div class="bp-route">
+      <div><div class="bp-code">${f.from}</div><div class="bp-city">인천국제공항</div></div>
+      <div class="bp-plane">──── ✈ ────</div>
+      <div style="text-align:right;"><div class="bp-code">${f.to}</div><div class="bp-city">${f.city}</div></div>
+    </div>
+    <div class="bp-grid">
+      <div><div class="k">PASSENGER</div><div class="v">${Booking.name}</div></div>
+      <div><div class="k">FLIGHT</div><div class="v">${f.no}</div></div>
+      <div><div class="k">SEAT</div><div class="v">${Booking.seat}</div></div>
+      <div><div class="k">DEPARTURE</div><div class="v">${f.dep}</div></div>
+      <div><div class="k">GATE</div><div class="v">${f.gate.replace('GATE ','')}</div></div>
+      <div><div class="k">BOARDING</div><div class="v">${f.dep.replace(/(\d+):(\d+)/,(m,h,mm)=>String(h-1).padStart(2,'0')+':'+mm)}</div></div>
+    </div>
+    <div class="bp-tear"></div>
+    <div class="bp-barcode"></div>
+    <div class="bp-note">예약이 확정되었습니다. 출발 2시간 전까지 공항에 도착해주세요!</div>`;
+}
+
+// ================================================================
+//  3D 엔진 (Three.js)
+// ================================================================
+const canvas = document.getElementById('game-canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+let scene, camera, clock = new THREE.Clock();
+let mode = 'none';           // drive | airport | flight
+let animateFns = [];         // 씬별 매 프레임 업데이트 함수
+
+function resize(){
+  renderer.setSize(innerWidth, innerHeight);
+  if(camera){ camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); }
+}
+addEventListener('resize', resize);
+
+function newScene(skyTop, skyBottom, fogColor, fogFar){
+  scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(fogColor, 30, fogFar);
+  camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, .1, 2000);
+  // 하늘 (그라데이션 반구)
+  const skyGeo = new THREE.SphereGeometry(900, 24, 12);
+  const skyMat = new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    uniforms:{ top:{value:new THREE.Color(skyTop)}, bottom:{value:new THREE.Color(skyBottom)} },
+    vertexShader:`varying vec3 vP; void main(){ vP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+    fragmentShader:`varying vec3 vP; uniform vec3 top; uniform vec3 bottom;
+      void main(){ float h=normalize(vP).y*.5+.5; gl_FragColor=vec4(mix(bottom,top,pow(h,.7)),1.); }`
+  });
+  scene.add(new THREE.Mesh(skyGeo, skyMat));
+  // 조명
+  const sun = new THREE.DirectionalLight(0xfff2dd, 1.15);
+  sun.position.set(40, 80, 30);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.left=-90; sun.shadow.camera.right=90;
+  sun.shadow.camera.top=90; sun.shadow.camera.bottom=-90;
+  scene.add(sun);
+  scene.add(new THREE.AmbientLight(0xbcd4ff, .55));
+  animateFns = [];
+  resize();
+  return scene;
+}
+
+// 공용 도우미
+const M = (c, opt={}) => new THREE.MeshStandardMaterial(Object.assign({ color:c, roughness:.85 }, opt));
+function box(w,h,d,c,x,y,z,parent,opt){
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), M(c,opt));
+  m.position.set(x,y,z); m.castShadow=true; m.receiveShadow=true;
+  (parent||scene).add(m); return m;
+}
+function cyl(rt,rb,h,c,x,y,z,parent,seg=16){
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg), M(c));
+  m.position.set(x,y,z); m.castShadow=true; (parent||scene).add(m); return m;
+}
+function textSprite(text, size=64, color='#ffffff', bg=null){
+  const cv = document.createElement('canvas');
+  const ctx = cv.getContext('2d');
+  ctx.font = `bold ${size}px Pretendard, sans-serif`;
+  const w = Math.ceil(ctx.measureText(text).width) + 40;
+  cv.width = w; cv.height = size + 40;
+  const c2 = cv.getContext('2d');
+  if(bg){ c2.fillStyle=bg; c2.fillRect(0,0,cv.width,cv.height); }
+  c2.font = `bold ${size}px Pretendard, sans-serif`;
+  c2.fillStyle = color; c2.textAlign='center'; c2.textBaseline='middle';
+  c2.fillText(text, cv.width/2, cv.height/2);
+  const tex = new THREE.CanvasTexture(cv);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map:tex, transparent:true }));
+  sp.scale.set(cv.width/60, cv.height/60, 1);
+  return sp;
+}
+
+// ---------------- 입력 ----------------
+const keys = {};
+addEventListener('keydown', e=>{ keys[e.code]=true; if(e.code==='KeyE') tryInteract(); });
+addEventListener('keyup', e=>{ keys[e.code]=false; });
+// 터치
+if('ontouchstart' in window) document.body.classList.add('touch');
+function bindTouch(id, code){
+  const b = document.getElementById(id);
+  b.addEventListener('touchstart', e=>{ e.preventDefault(); keys[code]=true; }, {passive:false});
+  b.addEventListener('touchend', e=>{ e.preventDefault(); keys[code]=false; }, {passive:false});
+}
+bindTouch('tc-up','KeyW'); bindTouch('tc-down','KeyS');
+bindTouch('tc-left','KeyA'); bindTouch('tc-right','KeyD');
+document.getElementById('btn-action').addEventListener('touchstart', e=>{ e.preventDefault(); tryInteract(); }, {passive:false});
+const up = ()=>keys['KeyW']||keys['ArrowUp'], down = ()=>keys['KeyS']||keys['ArrowDown'];
+const left = ()=>keys['KeyA']||keys['ArrowLeft'], right = ()=>keys['KeyD']||keys['ArrowRight'];
+
+// ---------------- HUD / 대화 ----------------
+const HUD = {
+  el: document.getElementById('hud'),
+  show(){ this.el.classList.add('active'); },
+  hide(){ this.el.classList.remove('active'); },
+  title(t){ document.getElementById('hud-title').textContent = t; },
+  obj(t){ document.getElementById('hud-obj').textContent = t; },
+  prompt(t){
+    const p = document.getElementById('interact-prompt');
+    if(t){ document.getElementById('prompt-text').textContent = t; p.style.display='block'; }
+    else p.style.display='none';
+  }
+};
+let currentInteract = null;
+function tryInteract(){ if(currentInteract){ const f = currentInteract; currentInteract=null; HUD.prompt(null); f(); } }
+
+const Dialog = {
+  box: document.getElementById('dialog-box'),
+  queue: [], cb: null,
+  play(lines, cb){
+    this.queue = [...lines]; this.cb = cb;
+    this.box.style.display='block'; this.next();
+  },
+  next(){
+    if(!this.queue.length){
+      this.box.style.display='none';
+      const c=this.cb; this.cb=null; if(c) c(); return;
+    }
+    const [name, text] = this.queue.shift();
+    document.getElementById('dialog-name').textContent = name;
+    document.getElementById('dialog-text').textContent = text;
+  }
+};
+document.getElementById('dialog-box').addEventListener('click', ()=>Dialog.next());
+addEventListener('keydown', e=>{ if(e.code==='Space' && Dialog.box.style.display==='block'){ e.preventDefault(); Dialog.next(); } });
+
+function fade(inout, cb){
+  const f = document.getElementById('fade');
+  f.style.opacity = inout==='out' ? 1 : 0;
+  setTimeout(()=>cb&&cb(), 650);
+}
+
+// ---------------- 캐릭터/차 모델 ----------------
+function makeCar(color=0x1667ff){
+  const g = new THREE.Group();
+  const body = box(2, .7, 4.2, color, 0, .65, 0, g, {roughness:.35, metalness:.3});
+  box(1.7, .6, 2.2, color, 0, 1.25, -.1, g, {roughness:.3, metalness:.3});
+  box(1.6, .45, 1.9, 0x0b1d3a, 0, 1.3, -.1, g, {roughness:.1, metalness:.6}); // 창문
+  box(.3,.15,.1, 0xfff6c9, -.7,.6,2.1, g, {emissive:0xffe9a3, emissiveIntensity:1}); // 헤드라이트
+  box(.3,.15,.1, 0xfff6c9, .7,.6,2.1, g, {emissive:0xffe9a3, emissiveIntensity:1});
+  box(.3,.15,.1, 0xff3b30, -.7,.6,-2.1, g, {emissive:0xff3b30, emissiveIntensity:.8});
+  box(.3,.15,.1, 0xff3b30, .7,.6,-2.1, g, {emissive:0xff3b30, emissiveIntensity:.8});
+  const wheels = [];
+  [[-1,-1.4],[1,-1.4],[-1,1.4],[1,1.4]].forEach(([x,z])=>{
+    const w = cyl(.42,.42,.32, 0x151b26, x, .42, z, g, 18);
+    w.rotation.z = Math.PI/2; wheels.push(w);
+  });
+  g.userData.wheels = wheels;
+  return g;
+}
+function makePerson(shirt=0xffb703, pants=0x2b3a55){
+  const g = new THREE.Group();
+  const legL = box(.22,.55,.24, pants, -.14,.28,0, g);
+  const legR = box(.22,.55,.24, pants, .14,.28,0, g);
+  box(.55,.65,.32, shirt, 0,.88,0, g);
+  const armL = box(.16,.55,.2, shirt, -.37,.9,0, g);
+  const armR = box(.16,.55,.2, shirt, .37,.9,0, g);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(.24, 16, 12), M(0xf3c9a2));
+  head.position.set(0,1.45,0); head.castShadow=true; g.add(head);
+  box(.5,.14,.5, 0x12203a, 0,1.62,0, g); // 머리카락
+  g.userData.limbs = {legL, legR, armL, armR};
+  return g;
+}
+function makeSuitcase(color=0xd6336c){
+  const g = new THREE.Group();
+  box(.55,.8,.28, color, 0,.4,0, g, {roughness:.4});
+  box(.3,.08,.06, 0x333, 0,.86,0, g);
+  cyl(.05,.05,.1, 0x222, -.18,.05,.1, g); cyl(.05,.05,.1, 0x222, .18,.05,.1, g);
+  return g;
+}
+function makePlane(){
+  const g = new THREE.Group();
+  const bodyMat = M(0xf5f7fb, {roughness:.25, metalness:.15});
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 18, 20), bodyMat);
+  body.rotation.x = Math.PI/2; body.castShadow=true; g.add(body);
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(1.6, 20, 14), bodyMat);
+  nose.position.z = 9; nose.scale.z = 1.6; nose.castShadow=true; g.add(nose);
+  const tailCone = new THREE.Mesh(new THREE.CylinderGeometry(.35, 1.6, 6, 16), bodyMat);
+  tailCone.rotation.x = Math.PI/2; tailCone.position.z = -12; tailCone.castShadow=true; g.add(tailCone);
+  // 날개
+  const wingMat = M(0xdfe6f2, {roughness:.3, metalness:.2});
+  const mkWing = (sx)=>{
+    const w = new THREE.Mesh(new THREE.BoxGeometry(11, .25, 3.4), wingMat);
+    w.position.set(sx*6.2, -.4, 1); w.rotation.z = sx * .06; w.rotation.y = sx * -.35;
+    w.castShadow = true; g.add(w);
+    const eng = new THREE.Mesh(new THREE.CylinderGeometry(.75,.75,2.2,14), M(0x28324a,{metalness:.5,roughness:.3}));
+    eng.rotation.x = Math.PI/2; eng.position.set(sx*4.5, -1.15, 2); g.add(eng);
+  };
+  mkWing(-1); mkWing(1);
+  // 꼬리날개
+  const fin = new THREE.Mesh(new THREE.BoxGeometry(.25, 4, 3), M(0x1667ff,{roughness:.3}));
+  fin.position.set(0, 2.4, -13.2); fin.rotation.x = .25; fin.castShadow=true; g.add(fin);
+  const hs = new THREE.Mesh(new THREE.BoxGeometry(7, .2, 2.2), wingMat);
+  hs.position.set(0, .8, -13); g.add(hs);
+  // RAGIM 로고 스프라이트
+  const logo = textSprite('RAGIM AIR', 54, '#1667ff');
+  logo.position.set(0, 2.6, 3); logo.scale.multiplyScalar(.55); g.add(logo);
+  // 창문들
+  for(let i=-6;i<=6;i++){
+    box(.001,.28,.4, 0x0b1d3a, 1.61, .35, i*1.1, g, {emissive:0x274b8f, emissiveIntensity:.5});
+    box(.001,.28,.4, 0x0b1d3a, -1.61, .35, i*1.1, g, {emissive:0x274b8f, emissiveIntensity:.5});
+  }
+  return g;
+}
+function makeTree(x,z,s=1){
+  const g = new THREE.Group();
+  cyl(.14*s,.2*s,1.2*s, 0x6b4a2b, 0,.6*s,0, g, 8);
+  const leaf = new THREE.Mesh(new THREE.SphereGeometry(.9*s, 10, 8), M(0x2e9e4f));
+  leaf.position.y = 1.6*s; leaf.scale.y=1.25; leaf.castShadow=true; g.add(leaf);
+  g.position.set(x,0,z); scene.add(g); return g;
+}
+function makeBuilding(x,z,w,h,d,c){
+  const b = box(w,h,d,c,x,h/2,z);
+  // 창문 느낌 텍스처 대신 발광 스트립
+  for(let i=1;i<Math.floor(h/2.4);i++){
+    box(w*.92,.5,.02, 0xffe9a3, x, i*2.4, z+d/2+.02, scene, {emissive:0xffd76e, emissiveIntensity:.35});
+  }
+  return b;
+}
+
+// ================================================================
+//  PHASE 1 — 공항까지 드라이브
+// ================================================================
+const Drive = {
+  car:null, speed:0, dist:0, GOAL:520, signs:[], done:false,
+  build(){
+    newScene(0x7ec8ff, 0xfdeecd, 0xcfe6ff, 420);
+    mode='drive'; this.done=false; this.speed=0; this.dist=0;
+    // 지면
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), M(0x8fce7a));
+    ground.rotation.x = -Math.PI/2; ground.receiveShadow=true; scene.add(ground);
+    // 도로 (z축으로 길게)
+    const road = new THREE.Mesh(new THREE.PlaneGeometry(12, 1400), M(0x3a4150));
+    road.rotation.x = -Math.PI/2; road.position.set(0,.01,-500); road.receiveShadow=true; scene.add(road);
+    for(let z=40; z>-1200; z-=10){
+      const dash = new THREE.Mesh(new THREE.PlaneGeometry(.4, 4), M(0xfff3c2));
+      dash.rotation.x = -Math.PI/2; dash.position.set(0,.02,z); scene.add(dash);
+    }
+    // 가드레일 느낌 갓길선
+    [[-5.8],[5.8]].forEach(([x])=>{
+      const line = new THREE.Mesh(new THREE.PlaneGeometry(.3, 1400), M(0xffffff));
+      line.rotation.x=-Math.PI/2; line.position.set(x,.02,-500); scene.add(line);
+    });
+    // 주변 풍경
+    for(let i=0;i<90;i++){
+      const side = Math.random()<.5?-1:1;
+      const x = side*(9+Math.random()*40);
+      const z = 40 - Math.random()*1100;
+      if(Math.random()<.7) makeTree(x,z, .8+Math.random()*1.2);
+      else makeBuilding(x, z, 4+Math.random()*5, 6+Math.random()*14, 4+Math.random()*4,
+        [0xbcc7d8, 0xd9c8b2, 0x9fb3cf, 0xc9d4c0][Math.floor(Math.random()*4)]);
+    }
+    // 거리 표지판
+    this.signs = [];
+    [[100,'인천공항 4km'],[220,'인천공항 3km'],[340,'인천공항 2km'],[440,'인천공항 1km ✈']].forEach(([d,t])=>{
+      const g = new THREE.Group();
+      cyl(.12,.12,3.4, 0x8894a8, 0,1.7,0, g, 8);
+      const panel = box(4.2,1.3,.15, 0x0e7a3d, 0, 3.4, 0, g);
+      const label = textSprite(t, 46, '#ffffff');
+      label.position.set(0, 3.4, .35); label.scale.multiplyScalar(.5); g.add(label);
+      g.position.set(-7.5, 0, -d); scene.add(g);
+    });
+    // 공항 건물 (저 멀리)
+    const airport = new THREE.Group();
+    box(60, 12, 16, 0xe8edf5, 0, 6, 0, airport, {roughness:.4});
+    box(64, 1.2, 20, 0x1667ff, 0, 12.6, 0, airport, {roughness:.3, metalness:.2});
+    for(let i=-4;i<=4;i++) box(5,7,.2, 0x9cc4ff, i*6.4, 4, 8.1, airport, {emissive:0x5f92e8, emissiveIntensity:.35, roughness:.2});
+    cyl(1.2,1.6,22, 0xd7dee9, 24, 11, -4, airport);
+    box(6,3,6, 0x2b3a55, 24, 23.5, -4, airport, {roughness:.3}); // 관제탑
+    const at = textSprite('INCHEON AIRPORT ✈', 60, '#0b1d3a');
+    at.position.set(0, 15.5, 8); airport.add(at);
+    airport.position.set(0, 0, -this.GOAL - 30);
+    scene.add(airport);
+    // 자동차
+    this.car = makeCar(0x1667ff);
+    this.car.position.set(0, 0, 20);
+    this.car.rotation.y = Math.PI; // -z 방향으로 전진
+    scene.add(this.car);
+    // 트렁크 캐리어 살짝 보이게
+    const sc = makeSuitcase(); sc.scale.set(.7,.7,.7); sc.position.set(0,.95,-1.4); sc.rotation.x=.1; this.car.add(sc);
+
+    HUD.show();
+    HUD.title(`🚗 인천공항으로 이동 중 — ${Booking.name}님의 ${Booking.flight.no}편`);
+    HUD.obj('W/↑ 가속 · S/↓ 브레이크 · A,D 차선 이동');
+
+    animateFns.push(dt=>this.update(dt));
+    Dialog.play([
+      ['나', `좋아, ${Booking.flight.dest}행 비행기 예매 완료! 이제 공항으로 가자.`],
+      ['나', '출발 2시간 전까지는 도착해야 해. 밟는다!'],
+    ]);
+  },
+  update(dt){
+    if(this.done) return;
+    // 가속/감속
+    if(up()) this.speed = Math.min(this.speed + dt*18, 34);
+    else if(down()) this.speed = Math.max(this.speed - dt*30, 0);
+    else this.speed = Math.max(this.speed - dt*6, 0);
+    // 차선 이동
+    if(left()) this.car.position.x = Math.max(this.car.position.x - dt*8, -4.4);
+    if(right()) this.car.position.x = Math.min(this.car.position.x + dt*8, 4.4);
+    this.car.rotation.y = Math.PI + THREE.MathUtils.clamp((right()?-.12:0)+(left()?.12:0), -.12,.12);
+
+    this.car.position.z -= this.speed * dt;
+    this.dist = 20 - this.car.position.z;
+    this.car.userData.wheels.forEach(w=>w.rotation.x -= this.speed*dt*2.2);
+
+    // 카메라 추적
+    const t = this.car.position;
+    camera.position.lerp(new THREE.Vector3(t.x*.6, 4.2, t.z + 9.5), .12);
+    camera.lookAt(t.x, 1.2, t.z - 6);
+
+    const kmLeft = Math.max(0, (this.GOAL - this.dist)/this.GOAL*4.5);
+    HUD.obj(`속도 ${Math.round(this.speed*8)}km/h · 공항까지 ${kmLeft.toFixed(1)}km`);
+
+    if(this.dist >= this.GOAL){
+      this.done = true; this.speed = 0;
+      HUD.prompt(null);
+      Dialog.play([['나','공항 도착! 주차하고 체크인 카운터로 가자.']], ()=>{
+        fade('out', ()=>{ Airport.build(); fade('in'); });
+      });
+    }
+  }
+};
+
+// ================================================================
+//  PHASE 2 — 공항 (체크인 + 수하물 + 탑승구)
+// ================================================================
+const Airport = {
+  player:null, suitcase:null, hasBag:true, checked:false, boardingDone:false,
+  counterPos:new THREE.Vector3(0,0,-24), gatePos:new THREE.Vector3(26,0,-24),
+  belt:null, beltBags:[], walkT:0,
+  build(){
+    newScene(0xbcd7ff, 0xe9f1ff, 0xe6eefb, 300);
+    mode='airport'; this.checked=false; this.hasBag=true; this.boardingDone=false;
+    // 바닥 (광 나는 타일)
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 70), M(0xe8edf5, {roughness:.15, metalness:.1}));
+    floor.rotation.x = -Math.PI/2; floor.receiveShadow = true; scene.add(floor);
+    for(let x=-38;x<=38;x+=6){ const l=new THREE.Mesh(new THREE.PlaneGeometry(.1,70), M(0xc6d2e4)); l.rotation.x=-Math.PI/2; l.position.set(x,.01,0); scene.add(l); }
+    for(let z=-33;z<=33;z+=6){ const l=new THREE.Mesh(new THREE.PlaneGeometry(80,.1), M(0xc6d2e4)); l.rotation.x=-Math.PI/2; l.position.set(0,.01,z); scene.add(l); }
+    // 벽/천장 느낌
+    box(80,14,1, 0xf4f7fc, 0,7,-33);
+    box(1,14,70, 0xf4f7fc, -40,7,0); box(1,14,70, 0xf4f7fc, 40,7,0);
+    for(let x=-30;x<=30;x+=12) cyl(.5,.5,14, 0xd7dee9, x, 7, -10);
+    // 큰 유리창 (뒤쪽, 활주로 보이는 느낌)
+    for(let i=-3;i<=3;i++) box(9,8,.2, 0xaecdf5, i*11, 5, -32.4, scene, {emissive:0x7fb0ef, emissiveIntensity:.25, roughness:.1});
+
+    // ---- 체크인 카운터 ----
+    const counter = new THREE.Group();
+    box(10,1.1,1.6, 0x2b3a55, 0,.55,0, counter, {roughness:.4});
+    box(10,.15,1.9, 0xf5f7fb, 0,1.15,0, counter);
+    // 카운터 뒤 직원
+    const staff = makePerson(0x1667ff, 0x12203a);
+    staff.position.set(0,0,-1.4); counter.add(staff);
+    // 안내판
+    box(10.5,2,.2, 0x0b1d3a, 0, 4.4, -1.8, counter);
+    const ct = textSprite('RAGIM AIR CHECK-IN ✈', 56, '#ffb703');
+    ct.position.set(0, 4.4, -1.6); ct.scale.multiplyScalar(.75); counter.add(ct);
+    const cn = textSprite(`${Booking.flight.no} → ${Booking.flight.to}`, 44, '#ffffff');
+    cn.position.set(0, 3.1, -1.6); cn.scale.multiplyScalar(.6); counter.add(cn);
+    counter.position.copy(this.counterPos);
+    scene.add(counter);
+
+    // ---- 수하물 컨베이어 ----
+    this.belt = new THREE.Group();
+    box(1.6,.7,10, 0x39424f, 0,.35,0, this.belt, {roughness:.3});
+    box(1.4,.06,10, 0x11161e, 0,.74,0, this.belt, {roughness:.6});
+    this.belt.position.set(-7.5, 0, -27);
+    scene.add(this.belt);
+    this.beltBags = [];
+
+    // ---- 탑승 게이트 ----
+    const gate = new THREE.Group();
+    box(6,5,.6, 0xdfe6f2, 0,2.5,0, gate);
+    box(2.4,3.6,.7, 0x0b1d3a, 0,1.8,0, gate, {emissive:0x1a3f8f, emissiveIntensity:.4});
+    box(6.6,1.4,.4, 0x1667ff, 0,5.5,0, gate);
+    const gt = textSprite(Booking.flight.gate + ' · ' + Booking.flight.no, 50, '#ffffff');
+    gt.position.set(0,5.5,.5); gt.scale.multiplyScalar(.6); gate.add(gt);
+    gate.position.copy(this.gatePos); gate.position.z = -32.2;
+    this.gatePos.set(26,0,-30);
+    scene.add(gate);
+
+    // 의자들
+    for(let r=0;r<3;r++) for(let i=0;i<5;i++){
+      const ch = new THREE.Group();
+      box(.9,.12,.9, 0x3d4c66, 0,.5,0, ch); box(.9,.9,.12, 0x3d4c66, 0,1,.45, ch);
+      cyl(.06,.06,.5, 0x8894a8, -.35,.25,-.3, ch); cyl(.06,.06,.5, 0x8894a8, .35,.25,-.3, ch);
+      ch.position.set(14 + i*1.6, 0, -14 - r*3); scene.add(ch);
+    }
+    // 다른 승객 NPC
+    [[12,-8,0xd6336c],[20,-16,0x2e9e4f],[-14,-12,0x8b5cf6],[-20,-6,0xff8c42]].forEach(([x,z,c])=>{
+      const p = makePerson(c); p.position.set(x,0,z); p.rotation.y = Math.random()*6.28; scene.add(p);
+      const s = makeSuitcase(0x555f75); s.position.set(x+.8,0,z); scene.add(s);
+    });
+    // 안내 전광판
+    box(9,3,.3, 0x0b1d3a, -20, 6, -32.4);
+    const dep = textSprite(`DEPARTURES  ${Booking.flight.no} ${Booking.flight.to} ${Booking.flight.dep}  ON TIME`, 40, '#3ddc84');
+    dep.position.set(-20, 6, -32.1); dep.scale.multiplyScalar(.55); scene.add(dep);
+
+    // ---- 플레이어 ----
+    this.player = makePerson(0xffb703, 0x2b3a55);
+    this.player.position.set(0, 0, 24);
+    scene.add(this.player);
+    this.suitcase = makeSuitcase();
+    scene.add(this.suitcase);
+
+    HUD.show();
+    HUD.title(`🛄 인천공항 제1터미널 — ${Booking.flight.no}편 (${Booking.flight.dep} 출발)`);
+    HUD.obj('목표: RAGIM AIR 체크인 카운터로 가기');
+
+    animateFns.push(dt=>this.update(dt));
+    Dialog.play([
+      ['공항 안내방송', `${Booking.flight.dest}행 RAGIM AIR ${Booking.flight.no}편 탑승 수속을 진행하고 있습니다.`],
+      ['나', '체크인 카운터 찾았다. 캐리어 끌고 가자!'],
+    ]);
+  },
+  update(dt){
+    const p = this.player;
+    // 이동
+    const dir = new THREE.Vector3((right()?1:0)-(left()?1:0), 0, (down()?1:0)-(up()?1:0));
+    const moving = dir.lengthSq() > 0;
+    if(moving && !this.boardingDone){
+      dir.normalize();
+      p.position.addScaledVector(dir, dt*7);
+      p.position.x = THREE.MathUtils.clamp(p.position.x, -36, 36);
+      p.position.z = THREE.MathUtils.clamp(p.position.z, -29, 30);
+      p.rotation.y = Math.atan2(dir.x, dir.z);
+      // 걷기 애니메이션
+      this.walkT += dt*10;
+      const s = Math.sin(this.walkT)*.5;
+      const L = p.userData.limbs;
+      L.legL.rotation.x = s; L.legR.rotation.x = -s;
+      L.armL.rotation.x = -s*.8; L.armR.rotation.x = s*.8;
+    } else {
+      const L = p.userData.limbs;
+      ['legL','legR','armL','armR'].forEach(k=>L[k].rotation.x*=.85);
+    }
+    // 캐리어 따라다니기
+    if(this.hasBag){
+      const behind = new THREE.Vector3(0,0,-.9).applyEuler(p.rotation).add(p.position);
+      this.suitcase.position.lerp(behind, .18);
+      this.suitcase.rotation.y = p.rotation.y;
+    }
+    // 컨베이어 벨트 위 가방 이동
+    this.beltBags.forEach(b=>{ b.position.z -= dt*1.6; });
+    this.beltBags = this.beltBags.filter(b=>{ if(b.position.z < -32){ scene.remove(b); return false; } return true; });
+    if(Math.random() < dt*.25){ // 다른 승객 가방 랜덤 등장
+      const nb = makeSuitcase([0x555f75,0x2e9e4f,0x8b5cf6][Math.floor(Math.random()*3)]);
+      nb.position.set(-7.5, .78, -22.5); nb.rotation.y = Math.random(); scene.add(nb); this.beltBags.push(nb);
+    }
+
+    // 카메라
+    camera.position.lerp(new THREE.Vector3(p.position.x, 8.5, p.position.z + 11), .1);
+    camera.lookAt(p.position.x, 1.4, p.position.z - 2);
+
+    // 인터랙션 판정
+    if(!this.checked){
+      if(p.position.distanceTo(this.counterPos) < 5){
+        HUD.prompt('체크인하기');
+        currentInteract = ()=>this.doCheckin();
+      } else { HUD.prompt(null); currentInteract=null; }
+    } else if(!this.boardingDone){
+      if(p.position.distanceTo(this.gatePos) < 5){
+        HUD.prompt(`${Booking.flight.gate} 탑승하기`);
+        currentInteract = ()=>this.doBoard();
+      } else { HUD.prompt(null); currentInteract=null; }
+    }
+  },
+  doCheckin(){
+    this.checked = true;
+    Dialog.play([
+      ['체크인 직원', `안녕하세요, RAGIM AIR입니다. 여권과 예약 확인 부탁드립니다.`],
+      ['나', `${Booking.name}입니다. ${Booking.flight.no}편 ${Booking.flight.dest}행이요!`],
+      ['체크인 직원', `확인되었습니다. 좌석은 ${Booking.seat}번 창가… 아, 운 좋으시네요! 부치실 짐은 컨베이어에 올려주세요.`],
+    ], ()=>{
+      // 캐리어를 벨트로 이동시키는 연출
+      this.hasBag = false;
+      const bag = this.suitcase;
+      const start = bag.position.clone();
+      const mid = new THREE.Vector3(-7.5, 2.2, -23.5);
+      const end = new THREE.Vector3(-7.5, .78, -23.5);
+      let t = 0;
+      const fn = dt=>{
+        t += dt*1.2;
+        if(t<1){
+          const a = start.clone().lerp(mid, Math.min(t*2,1));
+          const b = mid.clone().lerp(end, Math.max(t*2-1,0));
+          bag.position.copy(t<.5?a:b);
+          bag.rotation.y += dt*3;
+        } else {
+          bag.rotation.y = 0;
+          this.beltBags.push(bag);
+          animateFns = animateFns.filter(f=>f!==fn);
+          Dialog.play([
+            ['체크인 직원', `수하물 접수 완료! ${Booking.flight.dest}에서 찾으시면 됩니다. 탑승은 ${Booking.flight.gate}, 즐거운 여행 되세요 ✈`],
+            ['나', `좋아, 이제 ${Booking.flight.gate}로 가서 비행기만 타면 된다!`],
+          ]);
+          HUD.obj(`목표: ${Booking.flight.gate}로 이동해서 탑승하기 →`);
+        }
+      };
+      animateFns.push(fn);
+    });
+  },
+  doBoard(){
+    this.boardingDone = true;
+    Dialog.play([
+      ['탑승구 직원', `RAGIM AIR ${Booking.flight.no}편 탑승을 시작합니다. 탑승권 스캔해주세요.`],
+      ['나', `삑— (스캔 완료) ${Booking.seat}번 좌석… 드디어 간다, ${Booking.flight.dest}!`],
+    ], ()=>{
+      fade('out', ()=>{ Flight.build(); fade('in'); });
+    });
+  }
+};
+
+// ================================================================
+//  PHASE 3 — 이륙
+// ================================================================
+const Flight = {
+  plane:null, t:0, clouds:[], phase:'taxi', speed:0,
+  build(){
+    newScene(0xffb36b, 0xffe3b3, 0xffd9a8, 700); // 노을
+    mode='flight'; this.t=0; this.phase='taxi'; this.speed=0;
+    // 활주로
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), M(0x7fae6b));
+    ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; scene.add(ground);
+    const runway = new THREE.Mesh(new THREE.PlaneGeometry(24, 2000), M(0x353c48));
+    runway.rotation.x=-Math.PI/2; runway.position.set(0,.02,-800); runway.receiveShadow=true; scene.add(runway);
+    for(let z=0; z>-1800; z-=18){
+      const d = new THREE.Mesh(new THREE.PlaneGeometry(.8,8), M(0xfff3c2));
+      d.rotation.x=-Math.PI/2; d.position.set(0,.03,z); scene.add(d);
+    }
+    // 공항 터미널 (뒤쪽)
+    box(80,12,18, 0xe8edf5, -60, 6, 30);
+    // 비행기
+    this.plane = makePlane();
+    this.plane.position.set(0, 1.9, 0);
+    this.plane.rotation.y = Math.PI; // -z로 활주
+    scene.add(this.plane);
+    // 구름
+    this.clouds = [];
+    for(let i=0;i<40;i++){
+      const c = new THREE.Group();
+      for(let j=0;j<4;j++){
+        const s = new THREE.Mesh(new THREE.SphereGeometry(3+Math.random()*4, 8, 6), M(0xffffff, {roughness:1, transparent:true, opacity:.92}));
+        s.position.set((Math.random()-.5)*10, (Math.random()-.5)*2.5, (Math.random()-.5)*7);
+        c.add(s);
+      }
+      c.position.set((Math.random()-.5)*500, 55+Math.random()*90, -200-Math.random()*1300);
+      scene.add(c); this.clouds.push(c);
+    }
+    HUD.show();
+    HUD.title(`✈️ RAGIM AIR ${Booking.flight.no} — ${Booking.flight.dest}행`);
+    HUD.obj('이륙 준비 중…');
+    HUD.prompt(null);
+    animateFns.push(dt=>this.update(dt));
+    Dialog.play([
+      ['기장', `승객 여러분, ${Booking.flight.dest}까지 모시게 될 기장입니다. 곧 이륙하겠습니다.`],
+      ['승무원', '좌석벨트를 매주시기 바랍니다. 이륙합니다!'],
+    ]);
+  },
+  update(dt){
+    this.t += dt;
+    const pl = this.plane;
+    if(this.phase==='taxi'){
+      this.speed = Math.min(this.speed + dt*14, 75);
+      pl.position.z -= this.speed*dt;
+      HUD.obj(`활주 중… ${Math.round(this.speed*4)}km/h`);
+      if(this.speed > 55){ this.phase='climb'; }
+      camera.position.lerp(new THREE.Vector3(pl.position.x+16, 6, pl.position.z+26), .08);
+      camera.lookAt(pl.position);
+    } else if(this.phase==='climb'){
+      this.speed = Math.min(this.speed + dt*10, 110);
+      pl.position.z -= this.speed*dt;
+      pl.position.y += dt*(6 + pl.position.y*.16);
+      pl.rotation.x = THREE.MathUtils.lerp(pl.rotation.x, .28, dt*1.2);
+      HUD.obj(`이륙! 고도 ${Math.round(pl.position.y*30)}m`);
+      camera.position.lerp(new THREE.Vector3(pl.position.x+22, pl.position.y+7, pl.position.z+30), .06);
+      camera.lookAt(pl.position);
+      if(pl.position.y > 60){ this.phase='cruise'; this.cruiseT=0; }
+    } else if(this.phase==='cruise'){
+      this.cruiseT += dt;
+      pl.position.z -= 90*dt;
+      pl.rotation.x = THREE.MathUtils.lerp(pl.rotation.x, .04, dt);
+      pl.position.y += dt*2;
+      camera.position.lerp(new THREE.Vector3(pl.position.x+24, pl.position.y+5, pl.position.z+26), .05);
+      camera.lookAt(pl.position);
+      HUD.obj(`순항 중 — ${Booking.flight.dest}까지 ${Math.max(0, Math.round((6-this.cruiseT)*300))}km`);
+      if(this.cruiseT > 6){
+        this.phase='done';
+        fade('out', ()=>Game.showEnd());
+      }
+    }
+    // 구름 스크롤
+    this.clouds.forEach(c=>{
+      if(c.position.z > pl.position.z + 120){ c.position.z -= 1500; c.position.x = (Math.random()-.5)*500; }
+    });
+  }
+};
+
+// ================================================================
+//  메인 루프 & 게임 흐름
+// ================================================================
+function loop(){
+  requestAnimationFrame(loop);
+  const dt = Math.min(clock.getDelta(), .05);
+  animateFns.forEach(f=>f(dt));
+  if(scene && camera) renderer.render(scene, camera);
+}
+loop();
+
+const Game = {
+  show(id){
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    if(id) document.getElementById(id).classList.add('active');
+  },
+  startBooking(){ this.show('app-screen'); AppUI.showSearch(); },
+  showTicket(){ buildTicket(); this.show('ticket-screen'); },
+  startDrive(){
+    this.show(null);
+    fade('out', ()=>{ Drive.build(); fade('in'); });
+  },
+  showEnd(){
+    HUD.hide();
+    const f = Booking.flight, h = Booking.hotel;
+    document.getElementById('end-title').textContent = `${f.dest} 도착! ${f.landmark}`;
+    document.getElementById('end-summary').innerHTML =
+      `${Booking.name}님, ${f.no}편으로 ${f.city}에 무사히 도착했어요.<br>` +
+      `이제 <b>${h.name}</b>에 체크인하고 ${f.landmarkName}부터 구경 가볼까요?<br><br>` +
+      `✈ ${f.from} → ${f.to} · 좌석 ${Booking.seat} · ${Booking.nights}박 ${Booking.nights+1}일 · 총 ${fmt(Booking.total())}`;
+    this.show('end-screen');
+    fade('in');
+  }
+};
+</script>
+</body>
+</html>
