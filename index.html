@@ -170,6 +170,58 @@
   #intro-screen .btn { width:min(320px,90vw); }
   .intro-plane { font-size:64px; margin-bottom:14px; animation:fly 3s ease-in-out infinite; }
   @keyframes fly { 0%,100%{ transform:translate(0,0) rotate(0);} 50%{ transform:translate(14px,-12px) rotate(6deg);} }
+
+  /* ---------- 기획안 반영 기능들 ---------- */
+  .fare-row { display:flex; gap:8px; margin-top:10px; }
+  .fare-btn { flex:1; padding:9px 6px; border:1.5px solid var(--line); border-radius:10px; background:#fff;
+    cursor:pointer; font-family:inherit; text-align:center; transition:border-color .15s, background .15s; }
+  .fare-btn:hover { border-color:var(--blue); background:#f2f7ff; }
+  .fare-btn b { display:block; font-size:13px; color:var(--ink); }
+  .fare-btn span { font-size:11px; color:#5a6d8c; }
+  .badge-seat { font-size:10px; color:#e0384f; font-weight:800; }
+  .badge-early { font-size:10px; background:#12b76a22; color:#0a8f52; padding:2px 8px; border-radius:6px; font-weight:800; }
+  .badge-up { font-size:10px; color:#e0384f; font-weight:700; }
+  .badge-down { font-size:10px; color:#0a8f52; font-weight:700; }
+
+  .hold-timer { display:flex; align-items:center; gap:8px; background:#fff4e5; border:1.5px solid #ffd8a8;
+    color:#b45309; border-radius:12px; padding:10px 14px; font-size:13px; font-weight:700; margin-bottom:12px; }
+  .hold-timer b { font-size:16px; font-variant-numeric:tabular-nums; }
+
+  .coin-badge { display:inline-flex; align-items:center; gap:5px; background:#fff7db; border:1px solid #f5d576;
+    color:#8a6d1a; border-radius:999px; padding:3px 10px; font-size:11px; font-weight:800; }
+  .coin-toggle { display:flex; justify-content:space-between; align-items:center; background:#fffbea;
+    border:1.5px dashed #f5d576; border-radius:12px; padding:10px 14px; margin:10px 0; cursor:pointer; }
+  .coin-toggle input { width:18px; height:18px; accent-color:var(--sun); }
+
+  #push-toast { position:fixed; top:14px; right:14px; z-index:60; display:flex; flex-direction:column; gap:8px; pointer-events:none; }
+  .toast { background:rgba(255,255,255,.97); border-radius:14px; padding:12px 16px; min-width:230px; max-width:82vw;
+    box-shadow:0 12px 40px rgba(0,0,0,.35); border-left:4px solid var(--blue);
+    font-size:12.5px; color:var(--ink); animation:toastIn .4s cubic-bezier(.2,1.3,.4,1); }
+  .toast b { display:block; font-size:11px; color:var(--blue); margin-bottom:2px; letter-spacing:.5px; }
+  .toast.out { animation:toastOut .4s forwards; }
+  @keyframes toastIn { from{ transform:translateX(120%);} to{ transform:none;} }
+  @keyframes toastOut { to{ transform:translateX(120%); opacity:0;} }
+
+  .qr-wrap { display:flex; align-items:center; gap:14px; margin:14px 20px; }
+  .qr { display:grid; grid-template-columns:repeat(17, 4px); grid-auto-rows:4px; padding:6px; background:#fff; border:1.5px solid var(--line); border-radius:8px; }
+  .qr i { background:#12203a; } .qr u { background:transparent; }
+  .qr-note { flex:1; font-size:11px; color:#8aa0c2; line-height:1.6; }
+  .qr-note b { color:var(--ink); }
+
+  .trip-plan { width:min(400px,100%); background:#fff; border-radius:18px; margin-top:14px; padding:16px 18px;
+    box-shadow:0 20px 60px rgba(0,0,0,.45); }
+  .trip-plan h3 { font-size:14px; color:var(--ink); margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; }
+  .tl-item { display:flex; gap:12px; position:relative; padding-bottom:14px; }
+  .tl-item:last-child { padding-bottom:0; }
+  .tl-item::before { content:''; position:absolute; left:9px; top:22px; bottom:0; border-left:2px dashed var(--line); }
+  .tl-item:last-child::before { display:none; }
+  .tl-dot { width:20px; height:20px; border-radius:50%; background:var(--sky); border:2px solid var(--blue);
+    display:grid; place-items:center; font-size:10px; flex-shrink:0; z-index:1; }
+  .tl-body { flex:1; }
+  .tl-time { font-size:10px; color:#8aa0c2; font-weight:700; }
+  .tl-title { font-size:13px; color:var(--ink); font-weight:800; }
+  .tl-sub { font-size:11px; color:#5a6d8c; }
+  #ticket-screen { overflow-y:auto; justify-content:flex-start; padding:28px 16px 40px; }
 </style>
 </head>
 <body>
@@ -188,10 +240,10 @@
 <div id="app-screen" class="screen">
   <div class="phone">
     <div class="app-header">
-      <div class="app-brand"><div class="logo">✈️</div> RAGIM TRIP</div>
+      <div class="app-brand"><div class="logo">✈️</div> RAGIM TRIP <span id="coin-badge" class="coin-badge" style="margin-left:auto;">🪙 <span id="coin-amt">3,000</span> 코인</span></div>
       <div class="app-sub" id="app-sub">전 세계 항공권을 검색해보세요</div>
       <div class="step-dots" id="step-dots">
-        <i class="on"></i><i></i><i></i><i></i>
+        <i class="on"></i><i></i><i></i><i></i><i></i>
       </div>
     </div>
     <div class="app-body" id="app-body"></div>
@@ -201,8 +253,12 @@
 <!-- ===== 탑승권 ===== -->
 <div id="ticket-screen" class="screen">
   <div class="boarding-pass" id="boarding-pass"></div>
+  <div class="trip-plan" id="trip-plan"></div>
   <button class="btn" onclick="Game.startDrive()">🚗 공항으로 출발하기</button>
 </div>
+
+<!-- ===== 푸시 알림 ===== -->
+<div id="push-toast"></div>
 
 <!-- ===== HUD ===== -->
 <div id="hud">
@@ -298,11 +354,39 @@ function getFlights(destCode){
   return out;
 }
 
+// 목적지별 투어/액티비티 (통합 예약 생태계)
+const TOURS = {
+  NRT: [ {name:'도쿄 시티투어 버스', price:45000, icon:'🚌'}, {name:'테마파크 자유이용권', price:89000, icon:'🎢'}, {name:'스카이트리 전망대', price:32000, icon:'🌆'} ],
+  KIX: [ {name:'오사카성 입장권', price:12000, icon:'🏯'}, {name:'유니버설 스튜디오풍 테마파크', price:95000, icon:'🎬'}, {name:'교토 당일치기 투어', price:68000, icon:'⛩️'} ],
+  BKK: [ {name:'왓아룬 사원 투어', price:25000, icon:'🛕'}, {name:'수상시장 보트 투어', price:38000, icon:'🛶'}, {name:'타이 마사지 2시간', price:29000, icon:'💆'} ],
+  DAD: [ {name:'바나힐 골든브릿지 투어', price:72000, icon:'🌉'}, {name:'호이안 야경 투어', price:41000, icon:'🏮'}, {name:'스노클링 보트 투어', price:55000, icon:'🤿'} ],
+  CDG: [ {name:'에펠탑 전망대 티켓', price:48000, icon:'🗼'}, {name:'루브르 박물관 입장권', price:35000, icon:'🖼️'}, {name:'센강 유람선 크루즈', price:42000, icon:'🚢'} ],
+  JFK: [ {name:'자유의 여신상 페리', price:39000, icon:'🗽'}, {name:'브로드웨이 뮤지컬 티켓', price:150000, icon:'🎭'}, {name:'전망대 통합권', price:62000, icon:'🏙️'} ],
+  SIN: [ {name:'가든스바이더베이 입장권', price:33000, icon:'🌳'}, {name:'나이트 사파리', price:52000, icon:'🦁'}, {name:'센토사 케이블카', price:28000, icon:'🚠'} ],
+};
+const USD_RATE = 1350; // 다중 통화 환율 (가상)
+const usd = n => '$' + Math.round(n/USD_RATE).toLocaleString('en-US');
+
 const Booking = {
   name:'', pax:1, flight:null, hotel:null, nights:2, seat:'',
-  total(){ return (this.flight?this.flight.price*this.pax:0) + (this.hotel?this.hotel.price*this.nights:0); }
+  fareName:'이코노미', fareMult:1, tours:[],
+  coins:3000, useCoins:false, earnedCoins:0,   // RAGIM 코인 리워드 (신규 가입 3,000코인)
+  flightCost(){ return this.flight ? Math.round(this.flight.price*this.fareMult/100)*100*this.pax : 0; },
+  tourCost(){ return this.tours.reduce((s,t)=>s+t.price,0); },
+  subtotal(){ return this.flightCost() + (this.hotel?this.hotel.price*this.nights:0) + this.tourCost(); },
+  total(){ return Math.max(0, this.subtotal() - (this.useCoins?this.coins:0)); }
 };
 const fmt = n => n.toLocaleString('ko-KR') + '원';
+
+// 실시간 푸시 알림 (기획안: 실시간 알림 및 추적)
+function pushNotify(title, msg, ms=4500){
+  const wrap = document.getElementById('push-toast');
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.innerHTML = `<b>${title}</b>${msg}`;
+  wrap.appendChild(t);
+  setTimeout(()=>{ t.classList.add('out'); setTimeout(()=>t.remove(), 450); }, ms);
+}
 
 // ---------------- 예매 앱 UI ----------------
 const AppUI = {
@@ -356,53 +440,87 @@ const AppUI = {
     if(!name){ alert('여행자 이름을 입력해주세요!'); return; }
     Booking.name = name;
     Booking.pax = +document.getElementById('in-pax').value;
-    const dest = document.getElementById('in-dest').value;
+    this.lastDest = document.getElementById('in-dest').value;
+    this.renderFlights();
+  },
+
+  renderFlights(){
+    this.clearHold();
+    const dest = this.lastDest;
     let list = getFlights(dest);
-    // 가격순 정렬
-    list = list.slice().sort((a,b)=>a.price-b.price);
+    // 다이내믹 프라이싱: 검색 시점마다 수요에 따라 가격 변동 + 잔여좌석
+    list.forEach(f=>{
+      const rate = .9 + Math.random()*.22;
+      f.dyn = Math.round(f.price*rate/1000)*1000;
+      f.diff = f.dyn - f.price;
+      f.seats = 2 + Math.floor(Math.random()*8);
+      f.early = Math.random() < .3;                   // 얼리버드 특가
+      if(f.early) f.dyn = Math.round(f.dyn*.85/1000)*1000;
+    });
+    list = list.slice().sort((a,b)=>a.dyn-b.dyn);
     this.setStep(1);
     this.sub.textContent = dest ? `인천 → ${DESTS[dest].city} · ${list.length}개 항공편` : `전체 ${list.length}개 항공편`;
     this.el.innerHTML = `
-      <div style="font-size:12px;color:#5a6d8c;margin-bottom:10px;padding:0 2px;">💡 가격이 낮은 순 · 카드를 눌러 선택하세요</div>
+      <div style="font-size:12px;color:#5a6d8c;margin-bottom:10px;padding:0 2px;">
+        📡 실시간 요금 · 가격 낮은 순 · 좌석 등급을 눌러 선택하세요</div>
       <div id="flight-list"></div>
       <button class="btn ghost" onclick="AppUI.showSearch()">← 검색 다시하기</button>`;
     const wrap = document.getElementById('flight-list');
     list.forEach(f=>{
       const c = document.createElement('div');
       c.className='option-card';
+      const diffTag = f.early
+        ? `<span class="badge-early">⚡ 얼리버드 특가</span>`
+        : (f.diff>0 ? `<span class="badge-up">▲ ${fmt(f.diff)} 상승</span>`
+          : f.diff<0 ? `<span class="badge-down">▼ ${fmt(-f.diff)} 하락</span>` : '');
       c.innerHTML = `
         <div class="flight-top">
           <span class="flight-airline" style="color:${f.airlineColor}">${f.airlineIcon} ${f.airlineName} · ${f.no}</span>
-          <span class="flight-price">${fmt(f.price)}</span></div>
+          <span class="flight-price">${fmt(f.dyn)}</span></div>
         <div class="flight-route">
           <div class="flight-time"><div class="t">${f.dep}</div><div class="c">ICN 인천</div></div>
           <div class="flight-mid"><span>${f.dur} · 직항</span></div>
           <div class="flight-time"><div class="t">${f.arr}</div><div class="c">${f.to} ${f.city}</div></div>
         </div>
-        <div style="margin-top:8px;display:flex;gap:6px;align-items:center;">
+        <div style="margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
           <span style="font-size:10px;background:${f.airlineColor}22;color:${f.airlineColor};padding:2px 8px;border-radius:6px;font-weight:700;">${f.airlineTag}</span>
           <span style="font-size:11px;color:#8aa0c2;">${f.flag} ${f.country} · ${f.airport}공항</span>
+          ${diffTag}
+          <span class="badge-seat" style="margin-left:auto;">🔥 ${f.seats}석 남음</span>
+        </div>
+        <div class="fare-row">
+          <button class="fare-btn" data-fare="eco"><b>이코노미</b><span>${fmt(f.dyn)}</span></button>
+          <button class="fare-btn" data-fare="biz"><b>비즈니스</b><span>${fmt(Math.round(f.dyn*2.4/1000)*1000)}</span></button>
         </div>`;
-      c.onclick = ()=>{ Booking.flight=f; AppUI.showHotels(); };
+      c.querySelector('[data-fare="eco"]').onclick = ()=>{ this.pickFlight(f, '이코노미', 1); };
+      c.querySelector('[data-fare="biz"]').onclick = ()=>{ this.pickFlight(f, '비즈니스', 2.4); };
       wrap.appendChild(c);
     });
   },
 
+  pickFlight(f, fareName, mult){
+    Booking.flight = Object.assign({}, f, { price: f.dyn });
+    Booking.fareName = fareName; Booking.fareMult = mult;
+    pushNotify('🔒 좌석 선점', `${f.airlineName} ${f.no} ${fareName} 좌석을 임시 확보했어요.`);
+    this.showHotels();
+  },
+
   showHotels(){
+    this.clearHold();
     this.setStep(2);
     const f = Booking.flight;
     this.sub.textContent = `${f.flag} ${f.city}에서 머물 호텔을 골라보세요`;
     this.el.innerHTML = `
       <div class="card" style="padding:12px 16px;">
-        <div class="summary-line"><span>선택한 항공편</span><b style="color:${f.airlineColor}">${f.airlineName} ${f.no}</b></div>
+        <div class="summary-line"><span>선택한 항공편</span><b style="color:${f.airlineColor}">${f.airlineName} ${f.no} · ${Booking.fareName}</b></div>
         <div class="summary-line"><span>노선</span><b>인천 → ${f.flag} ${f.city}</b></div>
       </div>
       <div class="field"><label>숙박 일수</label>
         <select id="in-nights" onchange="Booking.nights=+this.value">
-          <option value="2" selected>2박 3일</option><option value="3">3박 4일</option><option value="4">4박 5일</option><option value="5">5박 6일</option>
+          ${[2,3,4,5].map(n=>`<option value="${n}" ${n===Booking.nights?'selected':''}>${n}박 ${n+1}일</option>`).join('')}
         </select></div>
       <div id="hotel-list"></div>
-      <button class="btn ghost" onclick="AppUI.searchFlights()">← 항공편 다시 선택</button>`;
+      <button class="btn ghost" onclick="AppUI.renderFlights()">← 항공편 다시 선택</button>`;
     const wrap = document.getElementById('hotel-list');
     DESTS[f.to].hotels.forEach(h=>{
       const c = document.createElement('div');
@@ -412,52 +530,168 @@ const AppUI = {
         <div class="stars">${'★'.repeat(h.stars)}${'☆'.repeat(5-h.stars)}</div>
         <div class="hotel-meta">${h.meta}</div>
         <div class="hotel-price">${fmt(h.price)} <span style="font-size:11px;color:#8aa0c2;font-weight:600;">/ 1박</span></div>`;
-      c.onclick = ()=>{ Booking.hotel=h; AppUI.showPayment(); };
+      c.onclick = ()=>{ Booking.hotel=h; AppUI.showTours(); };
       wrap.appendChild(c);
     });
   },
 
-  showPayment(){
+  // 통합 예약 생태계: 투어/액티비티 추가
+  showTours(){
+    this.clearHold();
     this.setStep(3);
+    const f = Booking.flight;
+    Booking.tours = [];
+    this.sub.textContent = `${f.city} 투어·액티비티도 함께 예약할까요?`;
+    this.el.innerHTML = `
+      <div style="font-size:12px;color:#5a6d8c;margin-bottom:10px;padding:0 2px;">🎟️ 항공+호텔+투어 통합 예약 · 원하는 만큼 선택 (선택 안 해도 OK)</div>
+      <div id="tour-list"></div>
+      <button class="btn" id="tour-next" onclick="AppUI.showPayment()">선택 완료 → 결제하기</button>
+      <div style="height:8px;"></div>
+      <button class="btn ghost" onclick="AppUI.showHotels()">← 호텔 다시 선택</button>`;
+    const wrap = document.getElementById('tour-list');
+    TOURS[f.to].forEach(t=>{
+      const c = document.createElement('div');
+      c.className='option-card';
+      c.innerHTML = `
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="font-size:26px;">${t.icon}</div>
+          <div style="flex:1;">
+            <div class="hotel-name">${t.name}</div>
+            <div class="hotel-price">${fmt(t.price)} <span style="font-size:11px;color:#8aa0c2;font-weight:600;">/ 1인</span></div>
+          </div>
+          <div style="font-size:20px;color:#c4d4ee;" class="tour-check">＋</div>
+        </div>`;
+      c.onclick = ()=>{
+        const i = Booking.tours.indexOf(t);
+        if(i>=0){ Booking.tours.splice(i,1); c.classList.remove('selected'); c.querySelector('.tour-check').textContent='＋'; c.querySelector('.tour-check').style.color='#c4d4ee'; }
+        else { Booking.tours.push(t); c.classList.add('selected'); c.querySelector('.tour-check').textContent='✓'; c.querySelector('.tour-check').style.color='var(--ok)'; }
+        document.getElementById('tour-next').textContent =
+          Booking.tours.length ? `투어 ${Booking.tours.length}개 담김 → 결제하기` : '선택 완료 → 결제하기';
+      };
+      wrap.appendChild(c);
+    });
+  },
+
+  // 인벤토리 동시성 제어: 좌석 선점 홀딩 타이머
+  holdInt:null, holdLeft:0,
+  clearHold(){ if(this.holdInt){ clearInterval(this.holdInt); this.holdInt=null; } },
+  startHold(){
+    this.clearHold();
+    this.holdLeft = 300; // 5분
+    const tick = ()=>{
+      this.holdLeft--;
+      const el = document.getElementById('hold-left');
+      if(!el){ this.clearHold(); return; }
+      const m = Math.floor(this.holdLeft/60), s = String(this.holdLeft%60).padStart(2,'0');
+      el.textContent = `${m}:${s}`;
+      if(this.holdLeft <= 60) el.style.color = '#e0384f';
+      if(this.holdLeft <= 0){
+        this.clearHold();
+        alert('⏱ 좌석 선점 시간이 만료되었어요!\n요금이 변동될 수 있어 항공편 목록을 새로고침합니다.');
+        pushNotify('⏱ 선점 만료', '좌석 홀딩이 해제되어 실시간 요금으로 갱신됐어요.');
+        this.renderFlights();
+      }
+    };
+    this.holdInt = setInterval(tick, 1000);
+  },
+
+  showPayment(){
+    this.setStep(4);
     this.sub.textContent = '마지막 단계! 결제를 완료하세요';
     const f=Booking.flight, h=Booking.hotel;
+    Booking.useCoins = false;
+    const tourLines = Booking.tours.map(t=>
+      `<div class="summary-line"><span>${t.icon} ${t.name}</span><b>${fmt(t.price)}</b></div>`).join('');
     this.el.innerHTML = `
+      <div class="hold-timer">⏱ 좌석 선점 중 — <b id="hold-left">5:00</b>&nbsp;안에 결제를 완료해주세요</div>
       <div class="card">
         <h3>🧾 예약 내역</h3>
-        <div class="summary-line"><span>항공편</span><b>${f.airlineName} ${f.no}</b></div>
+        <div class="summary-line"><span>항공편</span><b>${f.airlineName} ${f.no} · ${Booking.fareName}</b></div>
         <div class="summary-line"><span>노선</span><b>인천 → ${f.flag} ${f.city}</b></div>
         <div class="summary-line"><span>출발</span><b>${f.dep} (${f.dur})</b></div>
-        <div class="summary-line"><span>인원</span><b>성인 ${Booking.pax}명 × ${fmt(f.price)}</b></div>
-        <div class="summary-line"><span>호텔</span><b>${h.name}</b></div>
-        <div class="summary-line"><span>숙박</span><b>${Booking.nights}박 × ${fmt(h.price)}</b></div>
-        <div class="total-line"><span>총 결제금액</span><span>${fmt(Booking.total())}</span></div>
+        <div class="summary-line"><span>항공권</span><b>성인 ${Booking.pax}명 · ${fmt(Booking.flightCost())}</b></div>
+        <div class="summary-line"><span>호텔 · ${h.name}</span><b>${Booking.nights}박 · ${fmt(h.price*Booking.nights)}</b></div>
+        ${tourLines}
+        <label class="coin-toggle">
+          <span>🪙 RAGIM 코인 <b>${Booking.coins.toLocaleString()}</b>개 사용 (-${fmt(Booking.coins)})</span>
+          <input type="checkbox" id="use-coins">
+        </label>
+        <div class="total-line"><span>총 결제금액</span><span id="total-amt">${fmt(Booking.total())}</span></div>
+        <div style="text-align:right;font-size:11px;color:#8aa0c2;" id="total-usd">≈ ${usd(Booking.total())} USD</div>
       </div>
       <div class="card">
         <h3>💳 결제 수단 <span style="font-size:10px;color:#8aa0c2;font-weight:500;">(가상 결제 · 실제로 결제되지 않아요)</span></h3>
-        <div class="field"><label>카드 번호</label><input value="1234 - 5678 - RAGIM - PAY" disabled></div>
-        <div class="row2">
-          <div class="field"><label>유효기간</label><input value="12 / 99" disabled></div>
-          <div class="field"><label>CVC</label><input value="•••" disabled></div>
+        <div class="fare-row" style="margin:0 0 10px;">
+          <button class="fare-btn" id="pm-pay" style="border-color:var(--blue);background:#f2f7ff;"><b>⚡ RAGIM PAY</b><span>원클릭 간편결제</span></button>
+          <button class="fare-btn" id="pm-card"><b>💳 카드 결제</b><span>일반 결제</span></button>
+        </div>
+        <div id="card-fields" style="display:none;">
+          <div class="field"><label>카드 번호</label><input value="1234 - 5678 - RAGIM - PAY" disabled></div>
+          <div class="row2">
+            <div class="field"><label>유효기간</label><input value="12 / 99" disabled></div>
+            <div class="field"><label>CVC</label><input value="•••" disabled></div>
+          </div>
         </div>
         <button class="btn" id="pay-btn" onclick="AppUI.pay()">${fmt(Booking.total())} 결제하기</button>
+        <div style="text-align:center;font-size:11px;color:#0a8f52;font-weight:700;margin-top:8px;">
+          🪙 결제 시 ${Math.round(Booking.subtotal()*.05).toLocaleString()}코인 적립 예정 (5%)</div>
       </div>
-      <button class="btn ghost" onclick="AppUI.showHotels()">← 호텔 다시 선택</button>`;
+      <button class="btn ghost" onclick="AppUI.showTours()">← 투어 다시 선택</button>`;
+    // 코인 토글
+    document.getElementById('use-coins').onchange = e=>{
+      Booking.useCoins = e.target.checked;
+      document.getElementById('total-amt').textContent = fmt(Booking.total());
+      document.getElementById('total-usd').textContent = '≈ ' + usd(Booking.total()) + ' USD';
+      document.getElementById('pay-btn').textContent = fmt(Booking.total()) + ' 결제하기';
+    };
+    // 결제수단 토글
+    const pmPay = document.getElementById('pm-pay'), pmCard = document.getElementById('pm-card');
+    pmPay.onclick = ()=>{ pmPay.style.borderColor='var(--blue)'; pmPay.style.background='#f2f7ff'; pmCard.style.borderColor='var(--line)'; pmCard.style.background='#fff'; document.getElementById('card-fields').style.display='none'; };
+    pmCard.onclick = ()=>{ pmCard.style.borderColor='var(--blue)'; pmCard.style.background='#f2f7ff'; pmPay.style.borderColor='var(--line)'; pmPay.style.background='#fff'; document.getElementById('card-fields').style.display='block'; };
+    this.startHold();
   },
 
   pay(){
+    this.clearHold();
+    if(Booking.useCoins){ Booking.coins = 0; }
+    Booking.earnedCoins = Math.round(Booking.subtotal()*.05);
     const btn = document.getElementById('pay-btn');
     btn.disabled = true; btn.textContent = '결제 처리중...';
     setTimeout(()=>{ btn.textContent='✓ 결제 완료!'; btn.style.background='var(--ok)'; }, 900);
-    setTimeout(()=>{ Game.showTicket(); }, 1800);
+    setTimeout(()=>{
+      Booking.coins += Booking.earnedCoins;
+      const cb = document.getElementById('coin-amt'); if(cb) cb.textContent = Booking.coins.toLocaleString();
+      pushNotify('🪙 코인 적립', `RAGIM 코인 ${Booking.earnedCoins.toLocaleString()}개가 적립되었어요! (5%)`);
+      pushNotify('✅ 예약 확정', `${Booking.flight.airlineName} ${Booking.flight.no} 예약이 확정되었습니다.`);
+      Game.showTicket();
+    }, 1800);
   }
 };
 
-// ---------------- 탑승권 ----------------
+// ---------------- 탑승권 + QR + 일정 타임라인 ----------------
+function makeQR(seedStr){
+  // 시드 기반 의사 QR 패턴 (모바일 스캔형 디지털 티켓 컨셉)
+  let seed = 0; for(const ch of seedStr) seed = (seed*31 + ch.charCodeAt(0)) >>> 0;
+  const rnd = ()=>{ seed = (seed*1103515245 + 12345) >>> 0; return (seed>>>16)/65536; };
+  const N = 17; const cells = [];
+  const finder = (r,c)=> (r<5&&c<5)||(r<5&&c>=N-5)||(r>=N-5&&c<5);
+  const finderOn = (r,c)=>{
+    const lr = r<5?r:(r>=N-5? r-(N-5):r), lc = c<5?c:(c>=N-5? c-(N-5):c);
+    return lr===0||lr===4||lc===0||lc===4||(lr===2&&lc===2);
+  };
+  for(let r=0;r<N;r++) for(let c=0;c<N;c++){
+    const on = finder(r,c) ? finderOn(r,c) : rnd()<.45;
+    cells.push(on?'<i></i>':'<u></u>');
+  }
+  return `<div class="qr">${cells.join('')}</div>`;
+}
+
 function buildTicket(){
   const f = Booking.flight;
   Booking.seat = String(Math.floor(Math.random()*28)+2) + 'ABCDEF'[Math.floor(Math.random()*6)];
+  const boardTime = f.dep.replace(/(\d+):(\d+)/,(m,h,mm)=>String(h-1).padStart(2,'0')+':'+mm);
   document.getElementById('boarding-pass').innerHTML = `
-    <div class="bp-head"><span class="brand">${f.airlineName}</span><span class="cls">BOARDING PASS · ECONOMY</span></div>
+    <div class="bp-head"><span class="brand">${f.airlineName}</span><span class="cls">BOARDING PASS · ${Booking.fareName==='비즈니스'?'BUSINESS':'ECONOMY'}</span></div>
     <div class="bp-route">
       <div><div class="bp-code">${f.from}</div><div class="bp-city">인천국제공항</div></div>
       <div class="bp-plane">──── ✈ ────</div>
@@ -469,11 +703,40 @@ function buildTicket(){
       <div><div class="k">SEAT</div><div class="v">${Booking.seat}</div></div>
       <div><div class="k">DEPARTURE</div><div class="v">${f.dep}</div></div>
       <div><div class="k">GATE</div><div class="v">${f.gate.replace('GATE ','')}</div></div>
-      <div><div class="k">BOARDING</div><div class="v">${f.dep.replace(/(\d+):(\d+)/,(m,h,mm)=>String(h-1).padStart(2,'0')+':'+mm)}</div></div>
+      <div><div class="k">BOARDING</div><div class="v">${boardTime}</div></div>
     </div>
     <div class="bp-tear"></div>
+    <div class="qr-wrap">
+      ${makeQR(f.no + Booking.name + Booking.seat)}
+      <div class="qr-note"><b>📱 모바일 디지털 티켓</b><br>인쇄 없이 게이트에서 바로 스캔하세요.<br>지연·게이트 변경 시 실시간 알림을 보내드려요.</div>
+    </div>
     <div class="bp-barcode"></div>
     <div class="bp-note">예약이 확정되었습니다. 출발 2시간 전까지 공항에 도착해주세요!</div>`;
+
+  // 스마트 일정 관리: 예약 기반 타임라인 자동 생성
+  const tourItems = Booking.tours.map((t,i)=>
+    `<div class="tl-item"><div class="tl-dot">${t.icon}</div><div class="tl-body">
+      <div class="tl-time">DAY ${Math.min(i+2, Booking.nights+1)}</div>
+      <div class="tl-title">${t.name}</div><div class="tl-sub">투어 · 예약 완료 · ${fmt(t.price)}</div></div></div>`).join('');
+  document.getElementById('trip-plan').innerHTML = `
+    <h3>🗓️ 나의 여행 일정 <span class="coin-badge">🪙 +${Booking.earnedCoins.toLocaleString()} 적립</span></h3>
+    <div class="tl-item"><div class="tl-dot">🛫</div><div class="tl-body">
+      <div class="tl-time">DAY 1 · ${f.dep}</div>
+      <div class="tl-title">인천 → ${f.city} (${f.no})</div>
+      <div class="tl-sub">${f.airlineName} · ${Booking.fareName} · 좌석 ${Booking.seat}</div></div></div>
+    <div class="tl-item"><div class="tl-dot">🛬</div><div class="tl-body">
+      <div class="tl-time">DAY 1 · ${f.arr}</div>
+      <div class="tl-title">${f.flag} ${f.airport} 공항 도착</div>
+      <div class="tl-sub">수하물 수취 후 이동</div></div></div>
+    <div class="tl-item"><div class="tl-dot">🏨</div><div class="tl-body">
+      <div class="tl-time">DAY 1 · 15:00</div>
+      <div class="tl-title">${Booking.hotel.name} 체크인</div>
+      <div class="tl-sub">${Booking.nights}박 ${Booking.nights+1}일 · ${'★'.repeat(Booking.hotel.stars)}</div></div></div>
+    ${tourItems}
+    <div class="tl-item"><div class="tl-dot">🏠</div><div class="tl-body">
+      <div class="tl-time">DAY ${Booking.nights+1}</div>
+      <div class="tl-title">인천으로 귀국</div>
+      <div class="tl-sub">즐거운 여행 되세요!</div></div></div>`;
 }
 
 // ================================================================
@@ -769,6 +1032,7 @@ const Drive = {
     HUD.obj('W/↑ 가속 · S/↓ 브레이크 · A,D 차선 이동');
 
     animateFns.push(dt=>this.update(dt));
+    pushNotify('✈ 운항 알림', `${Booking.flight.no}편 정시 출발 예정 · ${Booking.flight.gate} · 지연 없음`, 6000);
     Dialog.play([
       ['나', `좋아, ${Booking.flight.dest}행 비행기 예매 완료! 이제 공항으로 가자.`],
       ['나', '출발 2시간 전까지는 도착해야 해. 밟는다!'],
@@ -975,6 +1239,8 @@ const Airport = {
           bag.rotation.y = 0;
           this.beltBags.push(bag);
           animateFns = animateFns.filter(f=>f!==fn);
+          pushNotify('🛄 수하물 접수', `수하물 1개 접수 완료 · ${Booking.flight.to} 도착 후 수취`, 5000);
+          pushNotify('🎫 탑승 안내', `${Booking.flight.no}편 곧 탑승 시작 · ${Booking.flight.gate}`, 6500);
           Dialog.play([
             ['체크인 직원', `수하물 접수 완료! ${Booking.flight.dest}에서 찾으시면 됩니다. 탑승은 ${Booking.flight.gate}, 즐거운 여행 되세요 ✈`],
             ['나', `좋아, 이제 ${Booking.flight.gate}로 가서 비행기만 타면 된다!`],
@@ -1207,6 +1473,7 @@ const Arrival = {
       if(this.speed < 3){
         this.phase='done';
         HUD.obj('도착 완료 🎉');
+        pushNotify('🛬 도착 알림', `${f.flag} ${f.city} ${f.airport} 공항 도착 · 수하물 수취대 4번`, 6000);
         Dialog.play([
           ['기장', `${f.flag} ${f.city}에 안전하게 착륙했습니다. 즐거운 여행 되세요!`],
           ['승무원', `현지 시각 ${f.arr}, 날씨 맑음. ${f.airlineName}와 함께해 주셔서 감사합니다 ✈`],
@@ -1242,10 +1509,12 @@ const Game = {
     HUD.hide();
     const f = Booking.flight, h = Booking.hotel;
     document.getElementById('end-title').textContent = `${f.flag} ${f.city} 도착! ${f.landmark}`;
+    const tourTxt = Booking.tours.length ? `<br>🎟️ 예약한 투어: ${Booking.tours.map(t=>t.icon+' '+t.name).join(' · ')}` : '';
     document.getElementById('end-summary').innerHTML =
-      `${Booking.name}님, ${f.airlineName} ${f.no}편으로<br>${f.country} ${f.city}에 무사히 도착했어요!<br>` +
-      `이제 <b>${h.name}</b>에 체크인하고 ${f.landmark} ${f.landmarkName}부터 구경 가볼까요?<br><br>` +
-      `✈ ${f.from} → ${f.to} · 좌석 ${Booking.seat} · 성인 ${Booking.pax}명 · ${Booking.nights}박 ${Booking.nights+1}일<br>총 ${fmt(Booking.total())}`;
+      `${Booking.name}님, ${f.airlineName} ${f.no}편(${Booking.fareName})으로<br>${f.country} ${f.city}에 무사히 도착했어요!<br>` +
+      `이제 <b>${h.name}</b>에 체크인하고 ${f.landmark} ${f.landmarkName}부터 구경 가볼까요?${tourTxt}<br><br>` +
+      `✈ ${f.from} → ${f.to} · 좌석 ${Booking.seat} · 성인 ${Booking.pax}명 · ${Booking.nights}박 ${Booking.nights+1}일<br>` +
+      `총 ${fmt(Booking.total())} · 🪙 ${Booking.coins.toLocaleString()}코인 보유`;
     this.show('end-screen');
     fade('in');
   }
